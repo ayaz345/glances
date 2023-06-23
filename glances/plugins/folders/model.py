@@ -54,9 +54,6 @@ class PluginModel(GlancesPluginModel):
 
             # Put it on the stats var
             stats = self.glances_folders.get()
-        else:
-            pass
-
         # Update the stats
         self.stats = stats
 

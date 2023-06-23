@@ -49,11 +49,13 @@ class PluginModel(GlancesPluginModel):
 
     def generate_view_data(self):
         """Generate the views."""
-        self.view_data['version'] = '{} {}'.format('Glances', __version__)
-        self.view_data['psutil_version'] = ' with psutil {}'.format(psutil_version)
+        self.view_data['version'] = f'Glances {__version__}'
+        self.view_data['psutil_version'] = f' with psutil {psutil_version}'
 
         try:
-            self.view_data['configuration_file'] = 'Configuration file: {}'.format(self.config.loaded_config_file)
+            self.view_data[
+                'configuration_file'
+            ] = f'Configuration file: {self.config.loaded_config_file}'
         except AttributeError:
             pass
 
@@ -131,10 +133,8 @@ class PluginModel(GlancesPluginModel):
     def msg_curse(self, args=None, max_width=None):
         """Return the list to display in the curse interface."""
         # Init the return message
-        ret = []
+        ret = [self.curse_add_line(self.view_data['version'], 'TITLE')]
 
-        # Build the header message
-        ret.append(self.curse_add_line(self.view_data['version'], 'TITLE'))
         ret.append(self.curse_add_line(self.view_data['psutil_version']))
         ret.append(self.curse_new_line())
 

@@ -73,7 +73,7 @@ class GlancesPluginModel(object):
         self.plugin_name = self.__class__.__module__.split('.')[2]
         if self.plugin_name.startswith('glances_'):
             self.plugin_name = self.plugin_name.split('glances_')[1]
-        logger.debug("Init {} plugin".format(self.plugin_name))
+        logger.debug(f"Init {self.plugin_name} plugin")
 
         # Init the args
         self.args = args
@@ -90,16 +90,18 @@ class GlancesPluginModel(object):
         self.stats_history = self.init_stats_history()
 
         # Init the limits (configuration keys) dictionary
-        self._limits = dict()
+        self._limits = {}
         if config is not None:
-            logger.debug('Load section {} in {}'.format(self.plugin_name, config.config_file_paths()))
+            logger.debug(
+                f'Load section {self.plugin_name} in {config.config_file_paths()}'
+            )
             self.load_limits(config=config)
 
         # Init the actions
         self.actions = GlancesActions(args=args)
 
         # Init the views
-        self.views = dict()
+        self.views = {}
 
         # Hide stats if all the hide_zero_fields has never been != 0
         # Default is False, always display stats
@@ -138,7 +140,7 @@ class GlancesPluginModel(object):
 
     def exit(self):
         """Just log an event when Glances exit."""
-        logger.debug("Stop the {} plugin".format(self.plugin_name))
+        logger.debug(f"Stop the {self.plugin_name} plugin")
 
     def get_key(self):
         """Return the key of the list."""
@@ -149,9 +151,9 @@ class GlancesPluginModel(object):
         if not plugin_name:
             plugin_name = self.plugin_name
         try:
-            d = getattr(self.args, 'disable_' + plugin_name)
+            d = getattr(self.args, f'disable_{plugin_name}')
         except AttributeError:
-            d = getattr(self.args, 'enable_' + plugin_name, True)
+            d = getattr(self.args, f'enable_{plugin_name}', True)
         return d is False
 
     def is_disabled(self, plugin_name=None):
@@ -165,14 +167,18 @@ class GlancesPluginModel(object):
         """Init the stats history (dict of GlancesAttribute)."""
         if self.history_enable():
             init_list = [a['name'] for a in self.get_items_history_list()]
-            logger.debug("Stats history activated for plugin {} (items: {})".format(self.plugin_name, init_list))
+            logger.debug(
+                f"Stats history activated for plugin {self.plugin_name} (items: {init_list})"
+            )
         return GlancesHistory()
 
     def reset_stats_history(self):
         """Reset the stats history (dict of GlancesAttribute)."""
         if self.history_enable():
             reset_list = [a['name'] for a in self.get_items_history_list()]
-            logger.debug("Reset history for plugin {} (items: {})".format(self.plugin_name, reset_list))
+            logger.debug(
+                f"Reset history for plugin {self.plugin_name} (items: {reset_list})"
+            )
             self.stats_history.reset()
 
     def update_stats_history(self):
@@ -180,17 +186,15 @@ class GlancesPluginModel(object):
         # Build the history
         if self.get_export() and self.history_enable():
             # If the plugin data is a dict, the dict's key should be used
-            if self.get_key() is None:
-                item_name = ''
-            else:
-                item_name = self.get_key()
+            item_name = '' if self.get_key() is None else self.get_key()
             for i in self.get_items_history_list():
                 if isinstance(self.get_export(), list):
                     # Stats is a list of data
                     # Iter through it (for example, iter through network interface)
                     for l_export in self.get_export():
                         self.stats_history.add(
-                            nativestr(l_export[item_name]) + '_' + nativestr(i['name']),
+                            f'{nativestr(l_export[item_name])}_'
+                            + nativestr(i['name']),
                             l_export[i['name']],
                             description=i['description'],
                             history_max_size=self._limits['history_size'],
@@ -220,10 +224,7 @@ class GlancesPluginModel(object):
         if item is None:
             return s
         else:
-            if item in s:
-                return s[item]
-            else:
-                return None
+            return s[item] if item in s else None
 
     def get_json_history(self, item=None, nb=0):
         """Return the history (JSON format).
@@ -237,10 +238,7 @@ class GlancesPluginModel(object):
         if item is None:
             return s
         else:
-            if item in s:
-                return s[item]
-            else:
-                return None
+            return s[item] if item in s else None
 
     def get_export_history(self, item=None):
         """Return the stats history object to export."""
@@ -250,10 +248,7 @@ class GlancesPluginModel(object):
         """Return the stats history (JSON format)."""
         s = self.get_json_history(nb=nb)
 
-        if item is None:
-            return json_dumps(s)
-
-        return json_dumps_dictlist(s, item)
+        return json_dumps(s) if item is None else json_dumps_dictlist(s, item)
 
     def get_trend(self, item, nb=6):
         """Get the trend regarding to the last nb values.
@@ -350,14 +345,11 @@ class GlancesPluginModel(object):
                             item
                         )[0]
             else:
-                # Build the internal dict with the SNMP result
-                # Note: key is the first item in the snmp_oid
-                index = 1
-                for item in snmp_result:
+                for index, item in enumerate(snmp_result, start=1):
                     item_stats = {}
                     item_key = None
                     for key in iterkeys(snmp_oid):
-                        oid = snmp_oid[key] + '.' + str(index)
+                        oid = f'{snmp_oid[key]}.{str(index)}'
                         if oid in item:
                             if item_key is None:
                                 item_key = item[oid]
@@ -365,7 +357,6 @@ class GlancesPluginModel(object):
                                 item_stats[key] = item[oid]
                     if item_stats:
                         ret[item_key] = item_stats
-                    index += 1
         else:
             # Simple get request
             snmp_result = snmp_client.get_by_oid(itervalues(*snmp_oid))
@@ -406,14 +397,13 @@ class GlancesPluginModel(object):
         """
         if not isinstance(self.stats, list):
             return None
-        else:
-            if not isinstance(value, int) and value.isdigit():
-                value = int(value)
-            try:
-                return json_dumps({value: [i for i in self.stats if i[item] == value]})
-            except (KeyError, ValueError) as e:
-                logger.error("Cannot get item({})=value({}) ({})".format(item, value, e))
-                return None
+        if not isinstance(value, int) and value.isdigit():
+            value = int(value)
+        try:
+            return json_dumps({value: [i for i in self.stats if i[item] == value]})
+        except (KeyError, ValueError) as e:
+            logger.error(f"Cannot get item({item})=value({value}) ({e})")
+            return None
 
     def update_views_hidden(self):
         """Update the hidden views
@@ -436,7 +426,7 @@ class GlancesPluginModel(object):
         if isinstance(self.get_raw(), list) and self.get_raw() is not None and self.get_key() is not None:
             # Stats are stored in a list of dict (ex: NETWORK, FS...)
             for i in self.get_raw():
-                if any([i[f] for f in self.hide_zero_fields]):
+                if any(i[f] for f in self.hide_zero_fields):
                     for f in self.hide_zero_fields:
                         self.views[i[self.get_key()]][f]['_zero'] = self.views[i[self.get_key()]][f]['hidden']
                 for f in self.hide_zero_fields:
@@ -447,8 +437,8 @@ class GlancesPluginModel(object):
             # no plugin with dict instance use the hidden function...
             #
             # Stats are stored in a dict (ex: CPU, LOAD...)
-            for key in listkeys(self.get_raw()):
-                if any([self.get_raw()[f] for f in self.hide_zero_fields]):
+            for _ in listkeys(self.get_raw()):
+                if any(self.get_raw()[f] for f in self.hide_zero_fields):
                     for f in self.hide_zero_fields:
                         self.views[f]['_zero'] = self.views[f]['hidden']
                 for f in self.hide_zero_fields:
@@ -519,21 +509,13 @@ class GlancesPluginModel(object):
 
         Specify item if the stats are stored in a dict of dict (ex: NETWORK, FS...)
         """
-        if item is None:
-            item_views = self.views
-        else:
-            item_views = self.views[item]
-
+        item_views = self.views if item is None else self.views[item]
         if key is None:
             return item_views
+        if option is None:
+            return item_views[key]
         else:
-            if option is None:
-                return item_views[key]
-            else:
-                if option in item_views[key]:
-                    return item_views[key][option]
-                else:
-                    return 'DEFAULT'
+            return item_views[key][option] if option in item_views[key] else 'DEFAULT'
 
     def get_json_views(self, item=None, key=None, option=None):
         """Return the views (in JSON)."""
@@ -551,7 +533,9 @@ class GlancesPluginModel(object):
         # TODO: not optimized because this section is loaded for each plugin...
         if config.has_section('global'):
             self._limits['history_size'] = config.get_float_value('global', 'history_size', default=28800)
-            logger.debug("Load configuration key: {} = {}".format('history_size', self._limits['history_size']))
+            logger.debug(
+                f"Load configuration key: history_size = {self._limits['history_size']}"
+            )
 
         # Read the plugin specific section
         if config.has_section(self.plugin_name):
@@ -562,7 +546,7 @@ class GlancesPluginModel(object):
                     self._limits[limit] = config.get_float_value(self.plugin_name, level)
                 except ValueError:
                     self._limits[limit] = config.get_value(self.plugin_name, level).split(",")
-                logger.debug("Load limit: {} = {}".format(limit, self._limits[limit]))
+                logger.debug(f"Load limit: {limit} = {self._limits[limit]}")
 
         return True
 
@@ -593,14 +577,14 @@ class GlancesPluginModel(object):
 
     def set_limits(self, item, value):
         """Set the limits object."""
-        self._limits['{}_{}'.format(self.plugin_name, item)] = value
+        self._limits[f'{self.plugin_name}_{item}'] = value
 
     def get_limits(self, item=None):
         """Return the limits object."""
         if item is None:
             return self._limits
         else:
-            return self._limits.get('{}_{}'.format(self.plugin_name, item), None)
+            return self._limits.get(f'{self.plugin_name}_{item}', None)
 
     def get_stats_action(self):
         """Return stats for the action.
@@ -615,7 +599,7 @@ class GlancesPluginModel(object):
         """ "Return the stat name with an optional header"""
         ret = self.plugin_name
         if header != "":
-            ret += '_' + header
+            ret += f'_{header}'
         return ret
 
     def get_alert(
@@ -657,11 +641,8 @@ class GlancesPluginModel(object):
         # Compute the %
         try:
             value = (current * 100) / maximum
-        except ZeroDivisionError:
+        except (ZeroDivisionError, TypeError):
             return 'DEFAULT'
-        except TypeError:
-            return 'DEFAULT'
-
         # Build the stat_name
         stat_name = self.get_stat_name(header=header)
 
@@ -719,13 +700,14 @@ class GlancesPluginModel(object):
             # A command line is available for the current alert
             # 1) Build the {{mustache}} dictionary
             if isinstance(self.get_stats_action(), list):
-                # If the stats are stored in a list of dict (fs plugin for example)
-                # Return the dict for the current header
-                mustache_dict = {}
-                for item in self.get_stats_action():
-                    if item[self.get_key()] == action_key:
-                        mustache_dict = item
-                        break
+                mustache_dict = next(
+                    (
+                        item
+                        for item in self.get_stats_action()
+                        if item[self.get_key()] == action_key
+                    ),
+                    {},
+                )
             else:
                 # Use the stats dict
                 mustache_dict = self.get_stats_action()
@@ -741,20 +723,20 @@ class GlancesPluginModel(object):
     def is_limit(self, criticality, stat_name=""):
         """Return true if the criticality limit exist for the given stat_name"""
         if stat_name == "":
-            return self.plugin_name + '_' + criticality in self._limits
+            return f'{self.plugin_name}_{criticality}' in self._limits
         else:
-            return stat_name + '_' + criticality in self._limits
+            return f'{stat_name}_{criticality}' in self._limits
 
     def get_limit(self, criticality, stat_name=""):
         """Return the limit value for the alert."""
         # Get the limit for stat + header
         # Example: network_wlan0_rx_careful
         try:
-            limit = self._limits[stat_name + '_' + criticality]
+            limit = self._limits[f'{stat_name}_{criticality}']
         except KeyError:
             # Try fallback to plugin default limit
             # Example: network_careful
-            limit = self._limits[self.plugin_name + '_' + criticality]
+            limit = self._limits[f'{self.plugin_name}_{criticality}']
 
         # logger.debug("{} {} value is {}".format(stat_name, criticality, limit))
 
@@ -771,10 +753,10 @@ class GlancesPluginModel(object):
         # Example: network_wlan0_rx_careful_action
         # Action key available ?
         ret = [
-            (stat_name + '_' + criticality + '_action', False),
-            (stat_name + '_' + criticality + '_action_repeat', True),
-            (self.plugin_name + '_' + criticality + '_action', False),
-            (self.plugin_name + '_' + criticality + '_action_repeat', True),
+            (f'{stat_name}_{criticality}_action', False),
+            (f'{stat_name}_{criticality}_action_repeat', True),
+            (f'{self.plugin_name}_{criticality}_action', False),
+            (f'{self.plugin_name}_{criticality}_action_repeat', True),
         ]
         for r in ret:
             if r[0] in self._limits:
@@ -788,12 +770,12 @@ class GlancesPluginModel(object):
         # Get the log tag for stat + header
         # Example: network_wlan0_rx_log
         try:
-            log_tag = self._limits[stat_name + '_log']
+            log_tag = self._limits[f'{stat_name}_log']
         except KeyError:
             # Try fallback to plugin default log
             # Example: network_log
             try:
-                log_tag = self._limits[self.plugin_name + '_log']
+                log_tag = self._limits[f'{self.plugin_name}_log']
             except KeyError:
                 # By default, log are disabled
                 return default_action
@@ -812,10 +794,10 @@ class GlancesPluginModel(object):
 
         if header != "":
             # Add the header
-            plugin_name = plugin_name + '_' + header
+            plugin_name = f'{plugin_name}_{header}'
 
         try:
-            return self._limits[plugin_name + '_' + value]
+            return self._limits[f'{plugin_name}_{value}']
         except KeyError:
             return default
 
@@ -831,7 +813,8 @@ class GlancesPluginModel(object):
         """
         # @TODO: possible optimisation: create a re.compile list
         return any(
-            j for j in [re.fullmatch(i.lower(), value.lower()) for i in self.get_conf_value('show', header=header)]
+            re.fullmatch(i.lower(), value.lower())
+            for i in self.get_conf_value('show', header=header)
         )
 
     def is_hide(self, value, header=""):
@@ -844,7 +827,8 @@ class GlancesPluginModel(object):
         """
         # @TODO: possible optimisation: create a re.compile list
         return any(
-            j for j in [re.fullmatch(i.lower(), value.lower()) for i in self.get_conf_value('hide', header=header)]
+            re.fullmatch(i.lower(), value.lower())
+            for i in self.get_conf_value('hide', header=header)
         )
 
     def is_display(self, value, header=""):
@@ -858,7 +842,7 @@ class GlancesPluginModel(object):
         """Return the alias name for the relative header it it exists otherwise None."""
         try:
             # Force to lower case (issue #1126)
-            return self._limits[self.plugin_name + '_' + header.lower() + '_' + 'alias'][0]
+            return self._limits[f'{self.plugin_name}_{header.lower()}_alias'][0]
         except (KeyError, IndexError):
             # logger.debug("No alias found for {}".format(header))
             return None
@@ -876,19 +860,23 @@ class GlancesPluginModel(object):
         msgdict | Message to display (list of dict [{ 'msg': msg, 'decoration': decoration } ... ])
         align   | Message position
         """
-        display_curse = False
-
-        if hasattr(self, 'display_curse'):
-            display_curse = self.display_curse
+        display_curse = self.display_curse if hasattr(self, 'display_curse') else False
         if hasattr(self, 'align'):
             align_curse = self._align
 
-        if max_width is not None:
-            ret = {'display': display_curse, 'msgdict': self.msg_curse(args, max_width=max_width), 'align': align_curse}
-        else:
-            ret = {'display': display_curse, 'msgdict': self.msg_curse(args), 'align': align_curse}
-
-        return ret
+        return (
+            {
+                'display': display_curse,
+                'msgdict': self.msg_curse(args, max_width=max_width),
+                'align': align_curse,
+            }
+            if max_width is not None
+            else {
+                'display': display_curse,
+                'msgdict': self.msg_curse(args),
+                'align': align_curse,
+            }
+        )
 
     def curse_add_line(self, msg, decoration="DEFAULT", optional=False, additional=False, splittable=False):
         """Return a dict with.
@@ -993,7 +981,7 @@ class GlancesPluginModel(object):
             value = self.stats[key]
 
         if width is None:
-            msg_item = header + '{}'.format(key_name) + separator
+            msg_item = f'{header}{key_name}{separator}'
             msg_template_float = '{:.1f}{}'
             msg_template = '{}{}'
         else:
@@ -1075,13 +1063,15 @@ class GlancesPluginModel(object):
                     decimal_precision = 2
                 elif value < 100:
                     decimal_precision = 1
-                if low_precision:
-                    if symbol in 'MK':
-                        decimal_precision = 0
-                    else:
-                        decimal_precision = min(1, decimal_precision)
-                elif symbol in 'K':
+                if (
+                    low_precision
+                    and symbol in 'MK'
+                    or not low_precision
+                    and symbol in 'K'
+                ):
                     decimal_precision = 0
+                elif low_precision:
+                    decimal_precision = min(1, decimal_precision)
                 return '{:.{decimal}f}{symbol}'.format(value, decimal=decimal_precision, symbol=symbol)
         return '{!s}'.format(number)
 

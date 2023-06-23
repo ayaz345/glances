@@ -45,19 +45,21 @@ class Export(GlancesExport):
             os.makedirs(self.path)
         except OSError as e:
             if e.errno != errno.EEXIST:
-                logger.critical("Cannot create the Graph output folder {} ({})".format(self.path, e))
+                logger.critical(f"Cannot create the Graph output folder {self.path} ({e})")
                 sys.exit(2)
 
         # Check if output folder is writeable
         try:
             tempfile.TemporaryFile(dir=self.path)
         except OSError:
-            logger.critical("Graph output folder {} is not writeable".format(self.path))
+            logger.critical(f"Graph output folder {self.path} is not writeable")
             sys.exit(2)
 
-        logger.info("Graphs will be created in the {} folder".format(self.path))
+        logger.info(f"Graphs will be created in the {self.path} folder")
         if self.generate_every != 0:
-            logger.info("Graphs will be created automatically every {} seconds".format(self.generate_every))
+            logger.info(
+                f"Graphs will be created automatically every {self.generate_every} seconds"
+            )
             logger.info("or when 'g' key is pressed (only through the CLI interface)")
             # Start the timer
             self._timer = Timer(self.generate_every)
@@ -67,7 +69,7 @@ class Export(GlancesExport):
 
     def exit(self):
         """Close the files."""
-        logger.debug("Finalise export interface %s" % self.export_name)
+        logger.debug(f"Finalise export interface {self.export_name}")
 
     def update(self, stats):
         """Generate Graph file in the output folder."""
@@ -85,7 +87,7 @@ class Export(GlancesExport):
             if plugin_name in self.plugins_to_export(stats):
                 self.export(plugin_name, plugin.get_export_history())
 
-        logger.info("Graphs created in {}".format(self.path))
+        logger.info(f"Graphs created in {self.path}")
         self.args.generate_graph = False
 
     def export(self, title, data):
@@ -121,5 +123,5 @@ class Export(GlancesExport):
         )
         for k, v in iteritems(time_serie_subsample(data, self.width)):
             chart.add(k, v)
-        chart.render_to_file(os.path.join(self.path, title + '.svg'))
+        chart.render_to_file(os.path.join(self.path, f'{title}.svg'))
         return True

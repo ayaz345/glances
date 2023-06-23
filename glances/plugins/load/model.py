@@ -78,7 +78,9 @@ class PluginModel(GlancesPluginModel):
         try:
             self.nb_log_core = CorePluginModel(args=self.args).update()["log"]
         except Exception as e:
-            logger.warning('Error: Can not retrieve the CPU core number (set it to 1) ({})'.format(e))
+            logger.warning(
+                f'Error: Can not retrieve the CPU core number (set it to 1) ({e})'
+            )
             self.nb_log_core = 1
 
     def _getloadavg(self):
@@ -168,16 +170,20 @@ class PluginModel(GlancesPluginModel):
         # Loop over 1min, 5min and 15min load
         for load_time in ['1', '5', '15']:
             ret.append(self.curse_new_line())
-            msg = '{:7}'.format('{} min'.format(load_time))
+            msg = '{:7}'.format(f'{load_time} min')
             ret.append(self.curse_add_line(msg))
             if args.disable_irix and self.nb_log_core != 0:
                 # Enable Irix mode for load (see issue #1554)
-                load_stat = self.stats['min{}'.format(load_time)] / self.nb_log_core * 100
+                load_stat = self.stats[f'min{load_time}'] / self.nb_log_core * 100
                 msg = '{:>5.1f}%'.format(load_stat)
             else:
                 # Default mode for load
-                load_stat = self.stats['min{}'.format(load_time)]
+                load_stat = self.stats[f'min{load_time}']
                 msg = '{:>6.2f}'.format(load_stat)
-            ret.append(self.curse_add_line(msg, self.get_views(key='min{}'.format(load_time), option='decoration')))
+            ret.append(
+                self.curse_add_line(
+                    msg, self.get_views(key=f'min{load_time}', option='decoration')
+                )
+            )
 
         return ret

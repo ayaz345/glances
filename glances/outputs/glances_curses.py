@@ -190,11 +190,11 @@ class _GlancesCurses(object):
         if config is not None and config.has_section('outputs'):
             logger.debug('Read the outputs section in the configuration file')
             self.theme['name'] = config.get_value('outputs', 'curse_theme', default='black')
-            logger.debug('Theme for the curse interface: {}'.format(self.theme['name']))
+            logger.debug(f"Theme for the curse interface: {self.theme['name']}")
 
     def is_theme(self, name):
         """Return True if the theme *name* should be used."""
-        return getattr(self.args, 'theme_' + name) or self.theme['name'] == name
+        return getattr(self.args, f'theme_{name}') or self.theme['name'] == name
 
     def _init_history(self):
         """Init the history option."""
@@ -217,11 +217,11 @@ class _GlancesCurses(object):
         try:
             if hasattr(curses, 'start_color'):
                 curses.start_color()
-                logger.debug('Curses interface compatible with {} colors'.format(curses.COLORS))
+                logger.debug(f'Curses interface compatible with {curses.COLORS} colors')
             if hasattr(curses, 'use_default_colors'):
                 curses.use_default_colors()
         except Exception as e:
-            logger.warning('Error initializing terminal color ({})'.format(e))
+            logger.warning(f'Error initializing terminal color ({e})')
 
         # Init colors
         if self.args.disable_bold:
@@ -346,9 +346,7 @@ class _GlancesCurses(object):
                 pass
 
     def get_key(self, window):
-        # TODO: Check issue #163
-        ret = window.getch()
-        return ret
+        return window.getch()
 
     def __catch_key(self, return_to_browser=False):
         # Catch the pressed key
@@ -357,7 +355,7 @@ class _GlancesCurses(object):
             return -1
 
         # Actions (available in the global hotkey dict)...
-        logger.debug("Keypressed (code: {})".format(self.pressedkey))
+        logger.debug(f"Keypressed (code: {self.pressedkey})")
         for hotkey in self._hotkeys:
             if self.pressedkey == ord(hotkey) and 'switch' in self._hotkeys[hotkey]:
                 # Get the option name
@@ -464,46 +462,46 @@ class _GlancesCurses(object):
             # if self.args.cursor_position < glances_processes.max_processes - 2:
             if self.args.cursor_position < glances_processes.processes_count:
                 self.args.cursor_position += 1
-        elif self.pressedkey == ord('\x1b') or self.pressedkey == ord('q'):
+        elif self.pressedkey in [ord('\x1b'), ord('q')]:
             # 'ESC'|'q' > Quit
             if return_to_browser:
                 logger.info("Stop Glances client and return to the browser")
             else:
-                logger.info("Stop Glances (keypressed: {})".format(self.pressedkey))
-        elif self.pressedkey == curses.KEY_F5:
-            # "F5" manual refresh requested
-            pass
-
+                logger.info(f"Stop Glances (keypressed: {self.pressedkey})")
         # Return the key code
         return self.pressedkey
 
     def loop_position(self):
         """Return the current sort in the loop"""
-        for i, v in enumerate(self._sort_loop):
-            if v == glances_processes.sort_key:
-                return i
-        return 0
+        return next(
+            (
+                i
+                for i, v in enumerate(self._sort_loop)
+                if v == glances_processes.sort_key
+            ),
+            0,
+        )
 
     def disable_top(self):
         """Disable the top panel"""
         for p in ['quicklook', 'cpu', 'gpu', 'mem', 'memswap', 'load']:
-            setattr(self.args, 'disable_' + p, True)
+            setattr(self.args, f'disable_{p}', True)
 
     def enable_top(self):
         """Enable the top panel"""
         for p in ['quicklook', 'cpu', 'gpu', 'mem', 'memswap', 'load']:
-            setattr(self.args, 'disable_' + p, False)
+            setattr(self.args, f'disable_{p}', False)
 
     def disable_fullquicklook(self):
         """Disable the full quicklook mode"""
         for p in ['quicklook', 'cpu', 'gpu', 'mem', 'memswap']:
-            setattr(self.args, 'disable_' + p, False)
+            setattr(self.args, f'disable_{p}', False)
 
     def enable_fullquicklook(self):
         """Disable the full quicklook mode"""
         self.args.disable_quicklook = False
         for p in ['cpu', 'gpu', 'mem', 'memswap']:
-            setattr(self.args, 'disable_' + p, True)
+            setattr(self.args, f'disable_{p}', True)
 
     def end(self):
         """Shutdown the curses window."""
@@ -574,7 +572,7 @@ class _GlancesCurses(object):
         ret = {}
 
         for p in stats.getPluginsList(enable=False):
-            if p == 'quicklook' or p == 'processlist':
+            if p in ['quicklook', 'processlist']:
                 # processlist is done later
                 # because we need to know how many processes could be displayed
                 continue

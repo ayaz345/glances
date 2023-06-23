@@ -69,9 +69,9 @@ class AmpsList(object):
                 try:
                     amp = __import__(os.path.basename(amp_script)[:-3])
                 except ImportError as e:
-                    logger.warning("Missing Python Lib ({}), cannot load {} AMP".format(e, amp_conf_name))
+                    logger.warning(f"Missing Python Lib ({e}), cannot load {amp_conf_name} AMP")
                 except Exception as e:
-                    logger.warning("Cannot load {} AMP ({})".format(amp_conf_name, e))
+                    logger.warning(f"Cannot load {amp_conf_name} AMP ({e})")
                 else:
                     # Add the AMP to the dictionary
                     # The key is the AMP name
@@ -81,7 +81,7 @@ class AmpsList(object):
                     # Load the AMP configuration
                     self.__amps_dict[amp_conf_name].load_config(self.config)
         # Log AMPs list
-        logger.debug("AMPs list: {}".format(self.getList()))
+        logger.debug(f"AMPs list: {self.getList()}")
 
         return True
 
@@ -120,7 +120,7 @@ class AmpsList(object):
 
             if len(amps_list) > 0:
                 # At least one process is matching the regex
-                logger.debug("AMPS: {} processes {} detected ({})".format(len(amps_list), k, amps_list))
+                logger.debug(f"AMPS: {len(amps_list)} processes {k} detected ({amps_list})")
                 # Call the AMP update method
                 thread = threading.Thread(target=v.update_wrapper, args=[amps_list])
                 thread.start()
@@ -141,18 +141,23 @@ class AmpsList(object):
         ret = []
         try:
             # Search in both cmdline and name (for kernel thread, see #1261)
-            for p in processlist:
-                if (re.search(amp_value.regex(), p['name']) is not None) or (
+            ret.extend(
+                {
+                    'pid': p['pid'],
+                    'cpu_percent': p['cpu_percent'],
+                    'memory_percent': p['memory_percent'],
+                }
+                for p in processlist
+                if (re.search(amp_value.regex(), p['name']) is not None)
+                or (
                     p['cmdline'] is not None
                     and p['cmdline'] != []
-                    and re.search(amp_value.regex(), ' '.join(p['cmdline'])) is not None
-                ):
-                    ret.append(
-                        {'pid': p['pid'], 'cpu_percent': p['cpu_percent'], 'memory_percent': p['memory_percent']}
-                    )
-
+                    and re.search(amp_value.regex(), ' '.join(p['cmdline']))
+                    is not None
+                )
+            )
         except (TypeError, KeyError) as e:
-            logger.debug("Can not build AMPS list ({})".format(e))
+            logger.debug(f"Can not build AMPS list ({e})")
 
         return ret
 

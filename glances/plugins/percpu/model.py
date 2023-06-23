@@ -50,10 +50,6 @@ class PluginModel(GlancesPluginModel):
         # cpu_times_percent(percpu=True) methods
         if self.input_method == 'local':
             stats = cpu_percent.get(percpu=True)
-        else:
-            # Update stats using SNMP
-            pass
-
         # Update the stats
         self.stats = stats
 

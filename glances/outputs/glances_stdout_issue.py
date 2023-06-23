@@ -54,17 +54,19 @@ class GlancesStdoutIssue(object):
     def print_version(self):
         sys.stdout.write('=' * TERMINAL_WIDTH + '\n')
         sys.stdout.write(
-            'Glances {} ({})\n'.format(colors.BLUE + __version__ + colors.NO, os.path.realpath(glances.__file__))
+            f'Glances {colors.BLUE + __version__ + colors.NO} ({os.path.realpath(glances.__file__)})\n'
         )
-        sys.stdout.write('Python {} ({})\n'.format(colors.BLUE + platform.python_version() + colors.NO, sys.executable))
         sys.stdout.write(
-            'PsUtil {} ({})\n'.format(colors.BLUE + psutil_version + colors.NO, os.path.realpath(psutil.__file__))
+            f'Python {colors.BLUE + platform.python_version() + colors.NO} ({sys.executable})\n'
+        )
+        sys.stdout.write(
+            f'PsUtil {colors.BLUE + psutil_version + colors.NO} ({os.path.realpath(psutil.__file__)})\n'
         )
         sys.stdout.write('=' * TERMINAL_WIDTH + '\n')
         sys.stdout.flush()
 
     def print_issue(self, plugin, result, message):
-        sys.stdout.write('{}{}{}'.format(colors.BLUE + plugin, result, message))
+        sys.stdout.write(f'{colors.BLUE + plugin}{result}{message}')
         sys.stdout.write(colors.NO + '\n')
         sys.stdout.flush()
 
@@ -109,20 +111,30 @@ class GlancesStdoutIssue(object):
             except Exception as e:
                 stat_error = e
             if stat_error is None:
-                result = (colors.GREEN + '[OK]   ' + colors.BLUE + ' {:.5f}s '.format(counter.get())).rjust(
-                    41 - len(plugin)
-                )
+                result = (
+                    f'{colors.GREEN}[OK]   {colors.BLUE}'
+                    + ' {:.5f}s '.format(counter.get())
+                ).rjust(41 - len(plugin))
                 if isinstance(stat, list) and len(stat) > 0 and 'key' in stat[0]:
-                    key = 'key={} '.format(stat[0]['key'])
+                    key = f"key={stat[0]['key']} "
                     stat_output = pprint.pformat([stat[0]], compact=True, width=120, depth=3)
-                    message = colors.ORANGE + key + colors.NO + '\n' + stat_output[0:-1] + ', ...' + stat_output[-1]
+                    message = (
+                        colors.ORANGE
+                        + key
+                        + colors.NO
+                        + '\n'
+                        + stat_output[:-1]
+                        + ', ...'
+                        + stat_output[-1]
+                    )
                 else:
                     message = '\n' + colors.NO + pprint.pformat(stat, compact=True, width=120, depth=2)
             else:
-                result = (colors.RED + '[ERROR]' + colors.BLUE + ' {:.5f}s '.format(counter.get())).rjust(
-                    41 - len(plugin)
-                )
-                message = colors.NO + str(stat_error)[0 : TERMINAL_WIDTH - 41]
+                result = (
+                    f'{colors.RED}[ERROR]{colors.BLUE}'
+                    + ' {:.5f}s '.format(counter.get())
+                ).rjust(41 - len(plugin))
+                message = colors.NO + str(stat_error)[:TERMINAL_WIDTH - 41]
 
             # Display the result
             self.print_issue(plugin, result, message)

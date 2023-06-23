@@ -44,19 +44,25 @@ class PluginModel(GlancesPluginModel):
         # Init the sensor class
         start_duration.reset()
         self.glances_grab_sensors = GlancesGrabSensors()
-        logger.debug("Generic sensor plugin init duration: {} seconds".format(start_duration.get()))
+        logger.debug(
+            f"Generic sensor plugin init duration: {start_duration.get()} seconds"
+        )
 
         # Instance for the HDDTemp Plugin in order to display the hard disks
         # temperatures
         start_duration.reset()
         self.hddtemp_plugin = HddTempPluginModel(args=args, config=config)
-        logger.debug("HDDTemp sensor plugin init duration: {} seconds".format(start_duration.get()))
+        logger.debug(
+            f"HDDTemp sensor plugin init duration: {start_duration.get()} seconds"
+        )
 
         # Instance for the BatPercent in order to display the batteries
         # capacities
         start_duration.reset()
         self.batpercent_plugin = BatPercentPluginModel(args=args, config=config)
-        logger.debug("Battery sensor plugin init duration: {} seconds".format(start_duration.get()))
+        logger.debug(
+            f"Battery sensor plugin init duration: {start_duration.get()} seconds"
+        )
 
         # We want to display the stat in the curse interface
         self.display_curse = True
@@ -84,7 +90,7 @@ class PluginModel(GlancesPluginModel):
             try:
                 temperature = self.__set_type(self.glances_grab_sensors.get(SENSOR_TEMP_TYPE), SENSOR_TEMP_TYPE)
             except Exception as e:
-                logger.error("Cannot grab sensors temperatures (%s)" % e)
+                logger.error(f"Cannot grab sensors temperatures ({e})")
             else:
                 # Append temperature
                 stats.extend(temperature)
@@ -92,7 +98,7 @@ class PluginModel(GlancesPluginModel):
             try:
                 fan_speed = self.__set_type(self.glances_grab_sensors.get(SENSOR_FAN_TYPE), SENSOR_FAN_TYPE)
             except Exception as e:
-                logger.error("Cannot grab FAN speed (%s)" % e)
+                logger.error(f"Cannot grab FAN speed ({e})")
             else:
                 # Append FAN speed
                 stats.extend(fan_speed)
@@ -100,7 +106,7 @@ class PluginModel(GlancesPluginModel):
             try:
                 hddtemp = self.__set_type(self.hddtemp_plugin.update(), 'temperature_hdd')
             except Exception as e:
-                logger.error("Cannot grab HDD temperature (%s)" % e)
+                logger.error(f"Cannot grab HDD temperature ({e})")
             else:
                 # Append HDD temperature
                 stats.extend(hddtemp)
@@ -108,16 +114,10 @@ class PluginModel(GlancesPluginModel):
             try:
                 bat_percent = self.__set_type(self.batpercent_plugin.update(), 'battery')
             except Exception as e:
-                logger.error("Cannot grab battery percent (%s)" % e)
+                logger.error(f"Cannot grab battery percent ({e})")
             else:
                 # Append Batteries %
                 stats.extend(bat_percent)
-
-        elif self.input_method == 'snmp':
-            # Update stats using SNMP
-            # No standard:
-            # http://www.net-snmp.org/wiki/index.php/Net-SNMP_and_lm-sensors_on_Ubuntu_10.04
-            pass
 
         # Global change on stats
         self.stats = self.get_init_value()
@@ -140,8 +140,8 @@ class PluginModel(GlancesPluginModel):
         # Get the alias for each stat
         if self.has_alias(stats["label"].lower()):
             return self.has_alias(stats["label"].lower())
-        elif self.has_alias("{}_{}".format(stats["label"], stats["type"]).lower()):
-            return self.has_alias("{}_{}".format(stats["label"], stats["type"]).lower())
+        elif self.has_alias(f'{stats["label"]}_{stats["type"]}'.lower()):
+            return self.has_alias(f'{stats["label"]}_{stats["type"]}'.lower())
         else:
             return stats["label"]
 
@@ -177,18 +177,18 @@ class PluginModel(GlancesPluginModel):
                 if self.is_limit('critical', stat_name='sensors_temperature_' + i['label']):
                     # By default use the thresholds configured in the glances.conf file (see #2058)
                     alert = self.get_alert(current=i['value'], header='temperature_' + i['label'])
+                elif (
+                    i['critical'] is None
+                    or i['value'] < i['critical']
+                    and i['warning'] is None
+                ):
+                    alert = 'DEFAULT'
+                elif i['value'] >= i['critical']:
+                    alert = 'CRITICAL'
+                elif i['value'] >= i['warning']:
+                    alert = 'WARNING'
                 else:
-                    # Else use the system thresholds
-                    if i['critical'] is None:
-                        alert = 'DEFAULT'
-                    elif i['value'] >= i['critical']:
-                        alert = 'CRITICAL'
-                    elif i['warning'] is None:
-                        alert = 'DEFAULT'
-                    elif i['value'] >= i['warning']:
-                        alert = 'WARNING'
-                    else:
-                        alert = 'OK'
+                    alert = 'OK'
             elif i['type'] == 'battery':
                 alert = self.get_alert(current=100 - i['value'], header=i['type'])
             else:
@@ -336,9 +336,9 @@ class GlancesGrabSensors(object):
                 sensors_current = {}
                 # Sensor name
                 if feature.label == '':
-                    sensors_current['label'] = chip_name + ' ' + str(chip_name_index)
+                    sensors_current['label'] = f'{chip_name} {str(chip_name_index)}'
                 elif feature.label in [i['label'] for i in ret]:
-                    sensors_current['label'] = feature.label + ' ' + str(label_index)
+                    sensors_current['label'] = f'{feature.label} {str(label_index)}'
                     label_index += 1
                 else:
                     sensors_current['label'] = feature.label
@@ -357,11 +357,10 @@ class GlancesGrabSensors(object):
         """Get sensors list."""
         self.__update__()
         if sensor_type == SENSOR_TEMP_TYPE:
-            ret = [s for s in self.sensors_list if s['unit'] == SENSOR_TEMP_UNIT]
+            return [s for s in self.sensors_list if s['unit'] == SENSOR_TEMP_UNIT]
         elif sensor_type == SENSOR_FAN_TYPE:
-            ret = [s for s in self.sensors_list if s['unit'] == SENSOR_FAN_UNIT]
+            return [s for s in self.sensors_list if s['unit'] == SENSOR_FAN_UNIT]
         else:
             # Unknown type
-            logger.debug("Unknown sensor type %s" % sensor_type)
-            ret = []
-        return ret
+            logger.debug(f"Unknown sensor type {sensor_type}")
+            return []

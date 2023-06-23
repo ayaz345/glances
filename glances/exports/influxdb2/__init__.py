@@ -56,7 +56,7 @@ class Export(GlancesExport):
             self.interval = 0
         # and should be set to the Glances refresh time if the value is 0
         self.interval = self.interval if self.interval > 0 else self.args.time
-        logger.debug("InfluxDB export interval is set to {} seconds".format(self.interval))
+        logger.debug(f"InfluxDB export interval is set to {self.interval} seconds")
 
         # The hostname is always add as a tag
         self.hostname = node().split('.')[0]
@@ -69,20 +69,19 @@ class Export(GlancesExport):
         if not self.export_enable:
             return None
 
-        url = '{}://{}:{}'.format(self.protocol, self.host, self.port)
+        url = f'{self.protocol}://{self.host}:{self.port}'
         try:
             # See docs: https://influxdb-client.readthedocs.io/en/stable/api.html#influxdbclient
             client = InfluxDBClient(url=url, enable_gzip=False, verify_ssl=False, org=self.org, token=self.token)
         except Exception as e:
-            logger.critical("Cannot connect to InfluxDB server '%s' (%s)" % (url, e))
+            logger.critical(f"Cannot connect to InfluxDB server '{url}' ({e})")
             sys.exit(2)
         else:
             logger.info(
-                "Connected to InfluxDB server version {} ({})".format(client.health().version, client.health().message)
+                f"Connected to InfluxDB server version {client.health().version} ({client.health().message})"
             )
 
-        # Create the write client
-        write_client = client.write_api(
+        return client.write_api(
             write_options=WriteOptions(
                 batch_size=500,
                 flush_interval=self.interval * 1000,
@@ -93,7 +92,6 @@ class Export(GlancesExport):
                 exponential_base=2,
             )
         )
-        return write_client
 
     def _normalize(self, name, columns, points):
         """Normalize data for the InfluxDB's data model.
@@ -108,24 +106,24 @@ class Export(GlancesExport):
         # issue1871 - Check if a key exist. If a key exist, the value of
         # the key should be used as a tag to identify the measurement.
         keys_list = [k.split('.')[0] for k in columns if k.endswith('.key')]
-        if len(keys_list) == 0:
+        if not keys_list:
             keys_list = [None]
 
         for measurement in keys_list:
             # Manage field
             if measurement is not None:
                 fields = {
-                    k.replace('{}.'.format(measurement), ''): data_dict[k]
+                    k.replace(f'{measurement}.', ''): data_dict[k]
                     for k in data_dict
-                    if k.startswith('{}.'.format(measurement))
+                    if k.startswith(f'{measurement}.')
                 }
             else:
                 fields = data_dict
             # Transform to InfluxDB datamodel
             # https://docs.influxdata.com/influxdb/v2.0/reference/syntax/line-protocol/
-            for k in fields:
+            for k, v in fields.items():
                 #  Do not export empty (None) value
-                if fields[k] is None:
+                if v is None:
                     continue
                 # Convert numerical to float
                 try:
@@ -154,15 +152,15 @@ class Export(GlancesExport):
         """Write the points to the InfluxDB server."""
         # Manage prefix
         if self.prefix is not None:
-            name = self.prefix + '.' + name
+            name = f'{self.prefix}.{name}'
         # Write input to the InfluxDB database
         if len(points) == 0:
-            logger.debug("Cannot export empty {} stats to InfluxDB".format(name))
+            logger.debug(f"Cannot export empty {name} stats to InfluxDB")
         else:
             try:
                 self.client.write(self.bucket, self.org, self._normalize(name, columns, points), time_precision="s")
             except Exception as e:
                 # Log level set to debug instead of error (see: issue #1561)
-                logger.debug("Cannot export {} stats to InfluxDB ({})".format(name, e))
+                logger.debug(f"Cannot export {name} stats to InfluxDB ({e})")
             else:
-                logger.debug("Export {} stats to InfluxDB".format(name))
+                logger.debug(f"Export {name} stats to InfluxDB")

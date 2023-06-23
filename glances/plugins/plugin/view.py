@@ -58,7 +58,7 @@ class GlancesPluginView(object):
         self._align = 'left'
 
         # Init the views
-        self.views = dict()
+        self.views = {}
 
         # Hide stats if all the hide_zero_fields has never been != 0
         # Default is False, always display stats
@@ -111,7 +111,7 @@ class GlancesPluginView(object):
         if isinstance(self.get_raw(), list) and self.get_raw() is not None and self.get_key() is not None:
             # Stats are stored in a list of dict (ex: NETWORK, FS...)
             for i in self.get_raw():
-                if any([i[f] for f in self.hide_zero_fields]):
+                if any(i[f] for f in self.hide_zero_fields):
                     for f in self.hide_zero_fields:
                         self.views[i[self.get_key()]][f]['_zero'] = self.views[i[self.get_key()]][f]['hidden']
                 for f in self.hide_zero_fields:
@@ -123,8 +123,8 @@ class GlancesPluginView(object):
             #                       vvvv
             #
             # Stats are stored in a dict (ex: CPU, LOAD...)
-            for key in listkeys(self.get_raw()):
-                if any([self.get_raw()[f] for f in self.hide_zero_fields]):
+            for _ in listkeys(self.get_raw()):
+                if any(self.get_raw()[f] for f in self.hide_zero_fields):
                     for f in self.hide_zero_fields:
                         self.views[f]['_zero'] = self.views[f]['hidden']
                 for f in self.hide_zero_fields:
@@ -195,21 +195,13 @@ class GlancesPluginView(object):
 
         Specify item if the stats are stored in a dict of dict (ex: NETWORK, FS...)
         """
-        if item is None:
-            item_views = self.views
-        else:
-            item_views = self.views[item]
-
+        item_views = self.views if item is None else self.views[item]
         if key is None:
             return item_views
+        if option is None:
+            return item_views[key]
         else:
-            if option is None:
-                return item_views[key]
-            else:
-                if option in item_views[key]:
-                    return item_views[key][option]
-                else:
-                    return 'DEFAULT'
+            return item_views[key][option] if option in item_views[key] else 'DEFAULT'
 
     def get_json_views(self, item=None, key=None, option=None):
         """Return the views (in JSON)."""
@@ -228,19 +220,23 @@ class GlancesPluginView(object):
         msgdict | Message to display (list of dict [{ 'msg': msg, 'decoration': decoration } ... ])
         align   | Message position
         """
-        display_curse = False
-
-        if hasattr(self, 'display_curse'):
-            display_curse = self.display_curse
+        display_curse = self.display_curse if hasattr(self, 'display_curse') else False
         if hasattr(self, 'align'):
             align_curse = self._align
 
-        if max_width is not None:
-            ret = {'display': display_curse, 'msgdict': self.msg_curse(args, max_width=max_width), 'align': align_curse}
-        else:
-            ret = {'display': display_curse, 'msgdict': self.msg_curse(args), 'align': align_curse}
-
-        return ret
+        return (
+            {
+                'display': display_curse,
+                'msgdict': self.msg_curse(args, max_width=max_width),
+                'align': align_curse,
+            }
+            if max_width is not None
+            else {
+                'display': display_curse,
+                'msgdict': self.msg_curse(args),
+                'align': align_curse,
+            }
+        )
 
     def curse_add_line(self, msg, decoration="DEFAULT", optional=False, additional=False, splittable=False):
         """Return a dict with.
@@ -331,7 +327,7 @@ class GlancesPluginView(object):
             value = self.stats[key]
 
         if width is None:
-            msg_item = header + '{}'.format(key_name) + separator
+            msg_item = f'{header}{key_name}{separator}'
             if unit_type == 'float':
                 msg_value = '{:.1f}{}'.format(value, unit_short) + trailer
             elif 'min_symbol' in self.fields_description[key]:
@@ -342,7 +338,7 @@ class GlancesPluginView(object):
                     + trailer
                 )
             else:
-                msg_value = '{}{}'.format(int(value), unit_short) + trailer
+                msg_value = f'{int(value)}{unit_short}{trailer}'
         else:
             # Define the size of the message
             # item will be on the left
@@ -418,13 +414,15 @@ class GlancesPluginView(object):
                     decimal_precision = 2
                 elif value < 100:
                     decimal_precision = 1
-                if low_precision:
-                    if symbol in 'MK':
-                        decimal_precision = 0
-                    else:
-                        decimal_precision = min(1, decimal_precision)
-                elif symbol in 'K':
+                if (
+                    low_precision
+                    and symbol in 'MK'
+                    or not low_precision
+                    and symbol in 'K'
+                ):
                     decimal_precision = 0
+                elif low_precision:
+                    decimal_precision = min(1, decimal_precision)
                 return '{:.{decimal}f}{symbol}'.format(value, decimal=decimal_precision, symbol=symbol)
         return '{!s}'.format(number)
 

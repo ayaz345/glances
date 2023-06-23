@@ -119,9 +119,7 @@ class PluginModel(GlancesPluginModel):
         if config is not None:
             if 'processlist' in config.as_dict() and 'sort_key' in config.as_dict()['processlist']:
                 logger.debug(
-                    'Configuration overwrites processes sort key by {}'.format(
-                        config.as_dict()['processlist']['sort_key']
-                    )
+                    f"Configuration overwrites processes sort key by {config.as_dict()['processlist']['sort_key']}"
                 )
                 glances_processes.set_sort_key(config.as_dict()['processlist']['sort_key'], False)
 
@@ -148,10 +146,6 @@ class PluginModel(GlancesPluginModel):
                 stats = glances_processes.getlist(as_programs=True)
             else:
                 stats = glances_processes.getlist()
-
-        elif self.input_method == 'snmp':
-            # No SNMP grab for processes
-            pass
 
         # Update the stats
         self.stats = stats
@@ -186,21 +180,21 @@ class PluginModel(GlancesPluginModel):
         """Return process CPU curses"""
         if key_exist_value_not_none_not_v('cpu_percent', p, ''):
             cpu_layout = self.layout_stat['cpu'] if p['cpu_percent'] < 100 else self.layout_stat['cpu_no_digit']
-            if args.disable_irix and self.nb_log_core != 0:
-                msg = cpu_layout.format(p['cpu_percent'] / float(self.nb_log_core))
-            else:
-                msg = cpu_layout.format(p['cpu_percent'])
+            msg = (
+                cpu_layout.format(p['cpu_percent'] / float(self.nb_log_core))
+                if args.disable_irix and self.nb_log_core != 0
+                else cpu_layout.format(p['cpu_percent'])
+            )
             alert = self.get_alert(
                 p['cpu_percent'],
                 highlight_zero=False,
                 is_max=(p['cpu_percent'] == self.max_values['cpu_percent']),
                 header="cpu",
             )
-            ret = self.curse_add_line(msg, alert)
+            return self.curse_add_line(msg, alert)
         else:
             msg = self.layout_header['cpu'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+            return self.curse_add_line(msg)
 
     def _get_process_curses_mem(self, p, selected, args):
         """Return process MEM curses"""
@@ -212,31 +206,28 @@ class PluginModel(GlancesPluginModel):
                 is_max=(p['memory_percent'] == self.max_values['memory_percent']),
                 header="mem",
             )
-            ret = self.curse_add_line(msg, alert)
+            return self.curse_add_line(msg, alert)
         else:
             msg = self.layout_header['mem'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+            return self.curse_add_line(msg)
 
     def _get_process_curses_vms(self, p, selected, args):
         """Return process VMS curses"""
         if key_exist_value_not_none_not_v('memory_info', p, '', 1):
             msg = self.layout_stat['virt'].format(self.auto_unit(p['memory_info'][1], low_precision=False))
-            ret = self.curse_add_line(msg, optional=True)
+            return self.curse_add_line(msg, optional=True)
         else:
             msg = self.layout_header['virt'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+            return self.curse_add_line(msg)
 
     def _get_process_curses_rss(self, p, selected, args):
         """Return process RSS curses"""
         if key_exist_value_not_none_not_v('memory_info', p, '', 0):
             msg = self.layout_stat['res'].format(self.auto_unit(p['memory_info'][0], low_precision=False))
-            ret = self.curse_add_line(msg, optional=True)
+            return self.curse_add_line(msg, optional=True)
         else:
             msg = self.layout_header['res'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+            return self.curse_add_line(msg)
 
     def _get_process_curses_username(self, p, selected, args):
         """Return process username curses"""
@@ -244,11 +235,9 @@ class PluginModel(GlancesPluginModel):
             # docker internal users are displayed as ints only, therefore str()
             # Correct issue #886 on Windows OS
             msg = self.layout_stat['user'].format(str(p['username'])[:9])
-            ret = self.curse_add_line(msg)
         else:
             msg = self.layout_header['user'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+        return self.curse_add_line(msg)
 
     def _get_process_curses_time(self, p, selected, args):
         """Return process time curses"""
@@ -268,9 +257,9 @@ class PluginModel(GlancesPluginModel):
             if hours > 99:
                 msg = '{:<7}h'.format(hours)
             elif 0 < hours < 100:
-                msg = '{}h{}:{}'.format(hours, minutes, seconds)
+                msg = f'{hours}h{minutes}:{seconds}'
             else:
-                msg = '{}:{}'.format(minutes, seconds)
+                msg = f'{minutes}:{seconds}'
             msg = self.layout_stat['time'].format(msg)
             if hours > 0:
                 ret = self.curse_add_line(msg, decoration='CPU_TIME', optional=True)
@@ -285,11 +274,9 @@ class PluginModel(GlancesPluginModel):
             if num_threads is None:
                 num_threads = '?'
             msg = self.layout_stat['thread'].format(num_threads)
-            ret = self.curse_add_line(msg)
         else:
             msg = self.layout_header['thread'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+        return self.curse_add_line(msg)
 
     def _get_process_curses_nice(self, p, selected, args):
         """Return process nice curses"""
@@ -298,25 +285,24 @@ class PluginModel(GlancesPluginModel):
             if nice is None:
                 nice = '?'
             msg = self.layout_stat['nice'].format(nice)
-            ret = self.curse_add_line(msg, decoration=self.get_nice_alert(nice))
+            return self.curse_add_line(msg, decoration=self.get_nice_alert(nice))
         else:
             msg = self.layout_header['nice'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+            return self.curse_add_line(msg)
 
     def _get_process_curses_status(self, p, selected, args):
         """Return process status curses"""
         if 'status' in p:
             status = p['status']
             msg = self.layout_stat['status'].format(status)
-            if status == 'R':
-                ret = self.curse_add_line(msg, decoration='STATUS')
-            else:
-                ret = self.curse_add_line(msg)
+            return (
+                self.curse_add_line(msg, decoration='STATUS')
+                if status == 'R'
+                else self.curse_add_line(msg)
+            )
         else:
             msg = self.layout_header['status'].format('?')
-            ret = self.curse_add_line(msg)
-        return ret
+            return self.curse_add_line(msg)
 
     def _get_process_curses_io(self, p, selected, args, rorw='ior'):
         """Return process IO Read or Write curses"""
@@ -331,11 +317,9 @@ class PluginModel(GlancesPluginModel):
                 msg = self.layout_stat[rorw].format("0")
             else:
                 msg = self.layout_stat[rorw].format(self.auto_unit(io, low_precision=True))
-            ret = self.curse_add_line(msg, optional=True, additional=True)
         else:
             msg = self.layout_header[rorw].format("?")
-            ret = self.curse_add_line(msg, optional=True, additional=True)
-        return ret
+        return self.curse_add_line(msg, optional=True, additional=True)
 
     def _get_process_curses_io_read(self, p, selected, args):
         """Return process IO Read curses"""
@@ -429,7 +413,7 @@ class PluginModel(GlancesPluginModel):
                 ret.append(self.curse_add_line(msg, decoration=process_decoration, splittable=True))
         except (TypeError, UnicodeEncodeError) as e:
             # Avoid crash after running fine for several hours #1335
-            logger.debug("Can not decode command line '{}' ({})".format(cmdline, e))
+            logger.debug(f"Can not decode command line '{cmdline}' ({e})")
             ret.append(self.curse_add_line('', splittable=True))
 
         return ret
@@ -519,7 +503,7 @@ class PluginModel(GlancesPluginModel):
 
     def __msg_curse_extended_process_program(self, ret, p):
         # Title
-        msg = "Pinned program {} ('e' to unpin)".format(p['name'])
+        msg = f"Pinned program {p['name']} ('e' to unpin)"
         ret.append(self.curse_add_line(msg, "TITLE"))
 
         ret.append(self.curse_new_line())
@@ -548,28 +532,27 @@ class PluginModel(GlancesPluginModel):
             # Windows: On Windows only ioclass is used and it can be set to 2 (normal), 1 (low) or 0 (very low).
             if WINDOWS:
                 if v == 0:
-                    msg += k + 'Very Low'
+                    msg += f'{k}Very Low'
                 elif v == 1:
-                    msg += k + 'Low'
+                    msg += f'{k}Low'
                 elif v == 2:
                     msg += 'No specific I/O priority'
                 else:
                     msg += k + str(v)
+            elif v == 0:
+                msg += 'No specific I/O priority'
+            elif v == 1:
+                msg += f'{k}Real Time'
+            elif v == 2:
+                msg += f'{k}Best Effort'
+            elif v == 3:
+                msg += f'{k}IDLE'
             else:
-                if v == 0:
-                    msg += 'No specific I/O priority'
-                elif v == 1:
-                    msg += k + 'Real Time'
-                elif v == 2:
-                    msg += k + 'Best Effort'
-                elif v == 3:
-                    msg += k + 'IDLE'
-                else:
-                    msg += k + str(v)
+                msg += k + str(v)
             #  value is a number which goes from 0 to 7.
             # The higher the value, the lower the I/O priority of the process.
             if hasattr(p['ionice'], 'value') and p['ionice'].value != 0:
-                msg += ' (value %s/7)' % str(p['ionice'].value)
+                msg += f" (value {str(p['ionice'].value)}/7)"
             ret.append(self.curse_add_line(msg, splittable=True))
 
         # Second line is memory info
@@ -587,7 +570,7 @@ class PluginModel(GlancesPluginModel):
                         splittable=True,
                     )
                 )
-                ret.append(self.curse_add_line(' ' + k + ' ', splittable=True))
+                ret.append(self.curse_add_line(f' {k} ', splittable=True))
             if 'memory_swap' in p and p['memory_swap'] is not None:
                 ret.append(
                     self.curse_add_line(
@@ -602,7 +585,7 @@ class PluginModel(GlancesPluginModel):
         for stat_prefix in ['num_threads', 'num_fds', 'num_handles', 'tcp', 'udp']:
             if stat_prefix in p and p[stat_prefix] is not None:
                 ret.append(self.curse_add_line(str(p[stat_prefix]), decoration='INFO'))
-                ret.append(self.curse_add_line(' {} '.format(stat_prefix.replace('num_', ''))))
+                ret.append(self.curse_add_line(f" {stat_prefix.replace('num_', '')} "))
 
         ret.append(self.curse_new_line())
         ret.append(self.curse_new_line())
@@ -612,7 +595,7 @@ class PluginModel(GlancesPluginModel):
         sort_style = 'SORT'
 
         if args.disable_irix and 0 < self.nb_log_core < 10:
-            msg = self.layout_header['cpu'].format('CPU%/' + str(self.nb_log_core))
+            msg = self.layout_header['cpu'].format(f'CPU%/{str(self.nb_log_core)}')
         elif args.disable_irix and self.nb_log_core != 0:
             msg = self.layout_header['cpu'].format('CPU%/C')
         else:
@@ -749,20 +732,17 @@ class PluginModel(GlancesPluginModel):
             msg = self.layout_header['iow'].format('')
             ret.append(self.curse_add_line(msg, optional=True, additional=True))
         if mmm is None:
-            msg = ' < {}'.format('current')
+            msg = ' < current'
             ret.append(self.curse_add_line(msg, optional=True))
         else:
-            msg = ' < {}'.format(mmm)
+            msg = f' < {mmm}'
             ret.append(self.curse_add_line(msg, optional=True))
             msg = ' (\'M\' to reset)'
             ret.append(self.curse_add_line(msg, optional=True))
 
     def __mmm_deco(self, mmm):
         """Return the decoration string for the current mmm status."""
-        if mmm is not None:
-            return 'DEFAULT'
-        else:
-            return 'FILTER'
+        return 'DEFAULT' if mmm is not None else 'FILTER'
 
     def __mmm_reset(self):
         """Reset the MMM stats."""
@@ -784,17 +764,12 @@ class PluginModel(GlancesPluginModel):
             if p[key] is None:
                 # Correct https://github.com/nicolargo/glances/issues/1105#issuecomment-363553788
                 continue
-            if indice is None:
-                ret += p[key]
-            else:
-                ret += p[key][indice]
-
+            ret += p[key] if indice is None else p[key][indice]
         # Manage Min/Max/Mean
         mmm_key = self.__mmm_key(key, indice)
         if mmm == 'min':
             try:
-                if self.mmm_min[mmm_key] > ret:
-                    self.mmm_min[mmm_key] = ret
+                self.mmm_min[mmm_key] = min(self.mmm_min[mmm_key], ret)
             except AttributeError:
                 self.mmm_min = {}
                 return 0
@@ -803,8 +778,7 @@ class PluginModel(GlancesPluginModel):
             ret = self.mmm_min[mmm_key]
         elif mmm == 'max':
             try:
-                if self.mmm_max[mmm_key] < ret:
-                    self.mmm_max[mmm_key] = ret
+                self.mmm_max[mmm_key] = max(self.mmm_max[mmm_key], ret)
             except AttributeError:
                 self.mmm_max = {}
                 return 0
@@ -826,8 +800,4 @@ class PluginModel(GlancesPluginModel):
 
     def __max_pid_size(self):
         """Return the maximum PID size in number of char."""
-        if self.pid_max is not None:
-            return len(str(self.pid_max))
-        else:
-            # By default return 5 (corresponding to 99999 PID number)
-            return 5
+        return len(str(self.pid_max)) if self.pid_max is not None else 5

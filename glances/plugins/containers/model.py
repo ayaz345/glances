@@ -124,7 +124,7 @@ class PluginModel(GlancesPluginModel):
         try:
             ret = deepcopy(self.stats['containers'])
         except KeyError as e:
-            logger.debug("docker plugin - Docker export error {}".format(e))
+            logger.debug(f"docker plugin - Docker export error {e}")
             ret = []
 
         # Remove fields uses to compute rate
@@ -142,10 +142,7 @@ class PluginModel(GlancesPluginModel):
         all=True
         """
         all_tag = self.get_conf_value('all')
-        if len(all_tag) == 0:
-            return False
-        else:
-            return all_tag[0].lower() == 'true'
+        return False if len(all_tag) == 0 else all_tag[0].lower() == 'true'
 
     @GlancesPluginModel._check_decorator
     @GlancesPluginModel._log_result_decorator
@@ -164,11 +161,6 @@ class PluginModel(GlancesPluginModel):
                 'version_podman': stats_podman.get('version', {}),
                 'containers': stats_docker.get('containers', []) + stats_podman.get('containers', []),
             }
-        elif self.input_method == 'snmp':
-            # Update stats using SNMP
-            # Not available
-            pass
-
         # Sort and update the stats
         # @TODO: Have a look because sort did not work for the moment (need memory stats ?)
         self.sort_key, self.stats = sort_docker_stats(stats)
@@ -243,27 +235,22 @@ class PluginModel(GlancesPluginModel):
         if not self.stats or 'containers' not in self.stats or len(self.stats['containers']) == 0 or self.is_disabled():
             return ret
 
-        show_pod_name = False
-        if any(ct.get("pod_name") for ct in self.stats["containers"]):
-            show_pod_name = True
-
-        show_engine_name = False
-        if len(set(ct["engine"] for ct in self.stats["containers"])) > 1:
-            show_engine_name = True
-
+        show_pod_name = any((ct.get("pod_name") for ct in self.stats["containers"]))
+        show_engine_name = len({ct["engine"] for ct in self.stats["containers"]}) > 1
         # Build the string message
         # Title
-        msg = '{}'.format('CONTAINERS')
+        msg = 'CONTAINERS'
         ret.append(self.curse_add_line(msg, "TITLE"))
-        msg = ' {}'.format(len(self.stats['containers']))
+        msg = f" {len(self.stats['containers'])}"
         ret.append(self.curse_add_line(msg))
-        msg = ' sorted by {}'.format(sort_for_human[self.sort_key])
-        ret.append(self.curse_add_line(msg))
-        # msg = ' (served by Docker {})'.format(self.stats['version']["Version"])
-        # ret.append(self.curse_add_line(msg))
-        ret.append(self.curse_new_line())
-        # Header
-        ret.append(self.curse_new_line())
+        msg = f' sorted by {sort_for_human[self.sort_key]}'
+        ret.extend(
+            (
+                self.curse_add_line(msg),
+                self.curse_new_line(),
+                self.curse_new_line(),
+            )
+        )
         # Get the maximum containers name
         # Max size is configurable. See feature request #1723.
         name_max_width = min(
@@ -311,7 +298,7 @@ class PluginModel(GlancesPluginModel):
             ret.append(self.curse_add_line(self._msg_name(container=container, max_width=name_max_width)))
             # Status
             status = self.container_alert(container['Status'])
-            msg = '{:>10}'.format(container['Status'][0:10])
+            msg = '{:>10}'.format(container['Status'][:10])
             ret.append(self.curse_add_line(msg, status))
             # Uptime
             if container['Uptime']:
@@ -383,9 +370,9 @@ class PluginModel(GlancesPluginModel):
             ret.append(self.curse_add_line(msg))
             # Command
             if container['Command'] is not None:
-                msg = ' {}'.format(' '.join(container['Command']))
+                msg = f" {' '.join(container['Command'])}"
             else:
-                msg = ' {}'.format('_')
+                msg = ' _'
             ret.append(self.curse_add_line(msg, splittable=True))
 
         return ret

@@ -45,7 +45,7 @@ class Export(GlancesExport):
                 self.csv_file = open_csv_file(self.csv_filename, 'r')
                 reader = csv.reader(self.csv_file)
             except IOError as e:
-                logger.critical("Cannot open existing CSV file: {}".format(e))
+                logger.critical(f"Cannot open existing CSV file: {e}")
                 sys.exit(2)
             self.old_header = next(reader, None)
             self.csv_file.close()
@@ -54,10 +54,10 @@ class Export(GlancesExport):
             self.csv_file = open_csv_file(self.csv_filename, file_mode)
             self.writer = csv.writer(self.csv_file)
         except IOError as e:
-            logger.critical("Cannot create the CSV file: {}".format(e))
+            logger.critical(f"Cannot create the CSV file: {e}")
             sys.exit(2)
 
-        logger.info("Stats exported to CSV file: {}".format(self.csv_filename))
+        logger.info(f"Stats exported to CSV file: {self.csv_filename}")
 
         self.export_enable = True
 
@@ -65,7 +65,7 @@ class Export(GlancesExport):
 
     def exit(self):
         """Close the CSV file."""
-        logger.debug("Finalise export interface %s" % self.export_name)
+        logger.debug(f"Finalise export interface {self.export_name}")
         self.csv_file.close()
 
     def update(self, stats):
@@ -84,14 +84,14 @@ class Export(GlancesExport):
                 for stat in sorted(all_stats[plugin], key=lambda x: x['key']):
                     # First line: header
                     if self.first_line:
-                        csv_header += ['{}_{}_{}'.format(plugin, self.get_item_key(stat), item) for item in stat]
+                        csv_header += [f'{plugin}_{self.get_item_key(stat)}_{item}' for item in stat]
                     # Others lines: stats
                     csv_data += itervalues(stat)
             elif isinstance(all_stats[plugin], dict):
                 # First line: header
                 if self.first_line:
                     fieldnames = iterkeys(all_stats[plugin])
-                    csv_header += ('{}_{}'.format(plugin, fieldname) for fieldname in fieldnames)
+                    csv_header += (f'{plugin}_{fieldname}' for fieldname in fieldnames)
                 # Others lines: stats
                 csv_data += itervalues(all_stats[plugin])
 
@@ -105,8 +105,8 @@ class Export(GlancesExport):
             if self.old_header != csv_header and self.old_header is not None:
                 # Header are different, log an error and do not write data
                 logger.error("Cannot append data to existing CSV file. Headers are different.")
-                logger.debug("Old header: {}".format(self.old_header))
-                logger.debug("New header: {}".format(csv_header))
+                logger.debug(f"Old header: {self.old_header}")
+                logger.debug(f"New header: {csv_header}")
             else:
                 # Header are equals, ready to write data
                 self.old_header = None

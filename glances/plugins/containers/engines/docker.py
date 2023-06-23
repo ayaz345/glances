@@ -8,6 +8,7 @@
 #
 
 """Docker Extension unit for Glances' Containers plugin."""
+
 import time
 
 from glances.globals import iterkeys, itervalues, nativestr, pretty_date
@@ -23,7 +24,9 @@ try:
 except Exception as e:
     import_docker_error_tag = True
     # Display debug message if import KeyError
-    logger.warning("Error loading Docker deps Lib. Docker plugin is disabled ({})".format(e))
+    logger.warning(
+        f"Error loading Docker deps Lib. Docker plugin is disabled ({e})"
+    )
 else:
     import_docker_error_tag = False
 
@@ -46,7 +49,9 @@ class DockerStatsFetcher:
         self._streamer = StatsStreamer(stats_iterable, initial_stream_value={})
 
     def _log_debug(self, msg, exception=None):
-        logger.debug("containers (Docker) ID: {} - {} ({}) ".format(self._container.id, msg, exception))
+        logger.debug(
+            f"containers (Docker) ID: {self._container.id} - {msg} ({exception}) "
+        )
         logger.debug(self._streamer.stats)
 
     def stop(self):
@@ -70,13 +75,12 @@ class DockerStatsFetcher:
             memory_stats = self._get_memory_stats()
             network_stats = self._get_network_stats()
 
-        computed_stats = {
+        return {
             "io": io_stats or {},
             "memory": memory_stats or {},
             "network": network_stats or {},
             "cpu": cpu_stats or {"total": 0.0},
         }
-        return computed_stats
 
     @property
     def time_since_update(self):
@@ -93,14 +97,14 @@ class DockerStatsFetcher:
         try:
             cpu_stats = self._streamer.stats['cpu_stats']
             precpu_stats = self._streamer.stats['precpu_stats']
-            cpu = {'system': cpu_stats['system_cpu_usage'], 'total': cpu_stats['cpu_usage']['total_usage']}
             precpu = {'system': precpu_stats['system_cpu_usage'], 'total': precpu_stats['cpu_usage']['total_usage']}
 
-            # Issue #1857
-            # If either precpu_stats.online_cpus or cpu_stats.online_cpus is nil
-            # then for compatibility with older daemons the length of
-            # the corresponding cpu_usage.percpu_usage array should be used.
-            cpu['nb_core'] = cpu_stats.get('online_cpus') or len(cpu_stats['cpu_usage']['percpu_usage'] or [])
+            cpu = {
+                'system': cpu_stats['system_cpu_usage'],
+                'total': cpu_stats['cpu_usage']['total_usage'],
+                'nb_core': cpu_stats.get('online_cpus')
+                or len(cpu_stats['cpu_usage']['percpu_usage'] or []),
+            }
         except KeyError as e:
             self._log_debug("Can't grab CPU stats", e)
             return None
@@ -162,9 +166,7 @@ class DockerStatsFetcher:
         # Read the rx/tx stats (in bytes)
         stats = {'cumulative_rx': eth0_stats["rx_bytes"], 'cumulative_tx': eth0_stats["tx_bytes"]}
 
-        # Using previous stats to calculate rates
-        old_network_stats = self._old_computed_stats.get("network")
-        if old_network_stats:
+        if old_network_stats := self._old_computed_stats.get("network"):
             stats['time_since_update'] = round(self.time_since_update)
             stats['rx'] = stats['cumulative_rx'] - old_network_stats["cumulative_rx"]
             stats['tx'] = stats['cumulative_tx'] - old_network_stats['cumulative_tx']
@@ -199,9 +201,7 @@ class DockerStatsFetcher:
 
         stats = {'cumulative_ior': cumulative_ior, 'cumulative_iow': cumulative_iow}
 
-        # Using previous stats to calculate difference
-        old_io_stats = self._old_computed_stats.get("io")
-        if old_io_stats:
+        if old_io_stats := self._old_computed_stats.get("io"):
             stats['time_since_update'] = round(self.time_since_update)
             stats['ior'] = stats['cumulative_ior'] - old_io_stats["cumulative_ior"]
             stats['iow'] = stats['cumulative_iow'] - old_io_stats["cumulative_iow"]
@@ -232,7 +232,7 @@ class DockerContainersExtension:
             # Do not use the timeout option (see issue #1878)
             self.client = docker.from_env()
         except Exception as e:
-            logger.error("{} plugin - Can't connect to Docker ({})".format(self.ext_name, e))
+            logger.error(f"{self.ext_name} plugin - Can't connect to Docker ({e})")
             self.client = None
 
     def update_version(self):
@@ -259,7 +259,7 @@ class DockerContainersExtension:
             # The Containers/all key of the configuration file should be set to True
             containers = self.client.containers.list(all=all_tag)
         except Exception as e:
-            logger.error("{} plugin - Can't get containers list ({})".format(self.ext_name, e))
+            logger.error(f"{self.ext_name} plugin - Can't get containers list ({e})")
             return version_stats, []
 
         # Start new thread for new container
@@ -267,14 +267,20 @@ class DockerContainersExtension:
             if container.id not in self.stats_fetchers:
                 # StatsFetcher did not exist in the internal dict
                 # Create it, add it to the internal dict
-                logger.debug("{} plugin - Create thread for container {}".format(self.ext_name, container.id[:12]))
+                logger.debug(
+                    f"{self.ext_name} plugin - Create thread for container {container.id[:12]}"
+                )
                 self.stats_fetchers[container.id] = DockerStatsFetcher(container)
 
         # Stop threads for non-existing containers
-        absent_containers = set(iterkeys(self.stats_fetchers)) - set(c.id for c in containers)
+        absent_containers = set(iterkeys(self.stats_fetchers)) - {
+            c.id for c in containers
+        }
         for container_id in absent_containers:
             # Stop the StatsFetcher
-            logger.debug("{} plugin - Stop thread for old container {}".format(self.ext_name, container_id[:12]))
+            logger.debug(
+                f"{self.ext_name} plugin - Stop thread for old container {container_id[:12]}"
+            )
             self.stats_fetchers[container_id].stop()
             # Delete the StatsFetcher from the dict
             del self.stats_fetchers[container_id]
@@ -320,7 +326,7 @@ class DockerContainersExtension:
             started_at = container.attrs['State']['StartedAt']
             stats_fetcher = self.stats_fetchers[container.id]
             activity_stats = stats_fetcher.activity_stats
-            stats.update(activity_stats)
+            stats |= activity_stats
 
             # Additional fields
             stats['cpu_percent'] = stats["cpu"]['total']

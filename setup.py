@@ -17,7 +17,7 @@ if sys.version_info < (3, 4):
 ##################
 
 with open(os.path.join('glances', '__init__.py'), encoding='utf-8') as f:
-    version = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", f.read(), re.M).group(1)
+    version = re.search(r"^__version__ = ['\"]([^'\"]*)['\"]", f.read(), re.M)[1]
 
 if not version:
     raise RuntimeError('Cannot find Glances version information.')
@@ -27,13 +27,20 @@ with open('README.rst', encoding='utf-8') as f:
 
 
 def get_data_files():
-    data_files = [
-        ('share/doc/glances', ['AUTHORS', 'COPYING', 'NEWS.rst', 'README.rst',
-                               'CONTRIBUTING.md', 'conf/glances.conf']),
-        ('share/man/man1', ['docs/man/glances.1'])
+    return [
+        (
+            'share/doc/glances',
+            [
+                'AUTHORS',
+                'COPYING',
+                'NEWS.rst',
+                'README.rst',
+                'CONTRIBUTING.md',
+                'conf/glances.conf',
+            ],
+        ),
+        ('share/man/man1', ['docs/man/glances.1']),
     ]
-
-    return data_files
 
 
 def get_install_requires():
@@ -44,9 +51,7 @@ def get_install_requires():
         'ujson>=5.4.0',
     ]
     if sys.platform.startswith('win'):
-        requires.append('bottle')
-        requires.append('requests')
-
+        requires.extend(('bottle', 'requests'))
     return requires
 
 
@@ -75,7 +80,7 @@ def get_install_extras_require():
         extras_require['sensors'] = ['batinfo']
 
     # Add automatically the 'all' target
-    extras_require.update({'all': [i[0] for i in extras_require.values()]})
+    extras_require['all'] = [i[0] for i in extras_require.values()]
 
     return extras_require
 

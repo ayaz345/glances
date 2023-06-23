@@ -9,6 +9,7 @@
 
 """Custom logger class."""
 
+
 import os
 import json
 import getpass
@@ -37,7 +38,9 @@ elif os.path.isdir(_XDG_CACHE_HOME) and os.access(_XDG_CACHE_HOME, os.W_OK):
     safe_makedirs(os.path.join(_XDG_CACHE_HOME, 'glances'))
     LOG_FILENAME = os.path.join(_XDG_CACHE_HOME, 'glances', 'glances.log')
 else:
-    LOG_FILENAME = os.path.join(tempfile.gettempdir(), 'glances-{}.log'.format(getpass.getuser()))
+    LOG_FILENAME = os.path.join(
+        tempfile.gettempdir(), f'glances-{getpass.getuser()}.log'
+    )
 
 # Define the logging configuration
 LOGGING_CFG = {

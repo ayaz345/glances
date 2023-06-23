@@ -76,7 +76,7 @@ class PluginModel(GlancesPluginModel):
                 try:
                     net_connections = psutil.net_connections(kind="tcp")
                 except Exception as e:
-                    logger.warning('Can not get network connections stats ({})'.format(e))
+                    logger.warning(f'Can not get network connections stats ({e})')
                     logger.info('Disable connections stats')
                     stats['net_connections_enabled'] = False
                     self.stats = stats
@@ -102,7 +102,7 @@ class PluginModel(GlancesPluginModel):
                         with open(self.conntrack[i], 'r') as f:
                             stats[i] = float(f.readline().rstrip("\n"))
                     except (IOError, FileNotFoundError) as e:
-                        logger.warning('Can not get network connections track ({})'.format(e))
+                        logger.warning(f'Can not get network connections track ({e})')
                         logger.info('Disable connections track')
                         stats['nf_conntrack_enabled'] = False
                         self.stats = stats
@@ -113,10 +113,6 @@ class PluginModel(GlancesPluginModel):
                     stats['nf_conntrack_enabled'] = False
                     self.stats = stats
                     return self.stats
-
-        elif self.input_method == 'snmp':
-            # Update stats using SNMP
-            pass
 
         # Update the stats
         self.stats = stats
@@ -147,7 +143,7 @@ class PluginModel(GlancesPluginModel):
 
         # Header
         if self.stats['net_connections_enabled'] or self.stats['nf_conntrack_enabled']:
-            msg = '{}'.format('TCP CONNECTIONS')
+            msg = 'TCP CONNECTIONS'
             ret.append(self.curse_add_line(msg, "TITLE"))
         # Connections status
         if self.stats['net_connections_enabled']:

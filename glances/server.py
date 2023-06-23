@@ -100,7 +100,7 @@ class GlancesXMLRPCServer(SimpleXMLRPCServer, object):
         try:
             self.address_family = socket.getaddrinfo(bind_address, bind_port)[0][0]
         except socket.error as e:
-            logger.error("Couldn't open socket: {}".format(e))
+            logger.error(f"Couldn't open socket: {e}")
             sys.exit(1)
 
         super(GlancesXMLRPCServer, self).__init__((bind_address, bind_port), requestHandler)
@@ -166,18 +166,16 @@ class GlancesInstance(object):
         The goal is to dynamically generate the API get'Stats'() methods.
         """
         header = 'get'
-        # Check if the attribute starts with 'get'
-        if item.startswith(header):
-            try:
-                # Update the stat
-                self.__update__()
-                # Return the attribute
-                return getattr(self.stats, item)
-            except Exception:
-                # The method is not found for the plugin
-                raise AttributeError(item)
-        else:
+        if not item.startswith(header):
             # Default behavior
+            raise AttributeError(item)
+        try:
+            # Update the stat
+            self.__update__()
+            # Return the attribute
+            return getattr(self.stats, item)
+        except Exception:
+            # The method is not found for the plugin
             raise AttributeError(item)
 
 
@@ -193,10 +191,10 @@ class GlancesServer(object):
         try:
             self.server = GlancesXMLRPCServer(args.bind_address, args.port, requestHandler, config=config)
         except Exception as e:
-            logger.critical("Cannot start Glances server: {}".format(e))
+            logger.critical(f"Cannot start Glances server: {e}")
             sys.exit(2)
         else:
-            print('Glances XML-RPC server is running on {}:{}'.format(args.bind_address, args.port))
+            print(f'Glances XML-RPC server is running on {args.bind_address}:{args.port}')
 
         # The users dict
         # username / password couple
@@ -211,7 +209,9 @@ class GlancesServer(object):
         if not self.args.disable_autodiscover:
             # Note: The Zeroconf service name will be based on the hostname
             # Correct issue: Zeroconf problem with zeroconf service name #889
-            logger.info('Autodiscover is enabled with service name {}'.format(socket.gethostname().split('.', 1)[0]))
+            logger.info(
+                f"Autodiscover is enabled with service name {socket.gethostname().split('.', 1)[0]}"
+            )
             self.autodiscover_client = GlancesAutoDiscoverClient(socket.gethostname().split('.', 1)[0], args)
         else:
             logger.info("Glances autodiscover announce is disabled")

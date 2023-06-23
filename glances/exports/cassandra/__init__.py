@@ -70,14 +70,16 @@ class Export(GlancesExport):
             )
             session = cluster.connect()
         except Exception as e:
-            logger.critical("Cannot connect to Cassandra cluster '%s:%s' (%s)" % (self.host, self.port, e))
+            logger.critical(
+                f"Cannot connect to Cassandra cluster '{self.host}:{self.port}' ({e})"
+            )
             sys.exit(2)
 
         # Keyspace
         try:
             session.set_keyspace(self.keyspace)
         except InvalidRequest:
-            logger.info("Create keyspace {} on the Cassandra cluster".format(self.keyspace))
+            logger.info(f"Create keyspace {self.keyspace} on the Cassandra cluster")
             c = "CREATE KEYSPACE %s WITH replication = { 'class': 'SimpleStrategy', 'replication_factor': '%s' }" % (
                 self.keyspace,
                 self.replication_factor,
@@ -86,9 +88,7 @@ class Export(GlancesExport):
             session.set_keyspace(self.keyspace)
 
         logger.info(
-            "Stats will be exported to Cassandra cluster {} ({}) in keyspace {}".format(
-                cluster.metadata.cluster_name, cluster.metadata.all_hosts(), self.keyspace
-            )
+            f"Stats will be exported to Cassandra cluster {cluster.metadata.cluster_name} ({cluster.metadata.all_hosts()}) in keyspace {self.keyspace}"
         )
 
         # Table
@@ -99,24 +99,24 @@ class Export(GlancesExport):
                 % self.table
             )
         except Exception:
-            logger.debug("Cassandra table %s already exist" % self.table)
+            logger.debug(f"Cassandra table {self.table} already exist")
 
         return cluster, session
 
     def export(self, name, columns, points):
         """Write the points to the Cassandra cluster."""
-        logger.debug("Export {} stats to Cassandra".format(name))
+        logger.debug(f"Export {name} stats to Cassandra")
 
         # Remove non number stats and convert all to float (for Boolean)
         data = {k: float(v) for (k, v) in dict(zip(columns, points)).iteritems() if isinstance(v, Number)}
 
         # Write input to the Cassandra table
         try:
-            stmt = "INSERT INTO {} (plugin, time, stat) VALUES (?, ?, ?)".format(self.table)
+            stmt = f"INSERT INTO {self.table} (plugin, time, stat) VALUES (?, ?, ?)"
             query = self.session.prepare(stmt)
             self.session.execute(query, (name, uuid_from_time(datetime.now()), data))
         except Exception as e:
-            logger.error("Cannot export {} stats to Cassandra ({})".format(name, e))
+            logger.error(f"Cannot export {name} stats to Cassandra ({e})")
 
     def exit(self):
         """Close the Cassandra export module."""

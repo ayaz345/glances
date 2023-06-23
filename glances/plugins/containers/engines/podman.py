@@ -7,6 +7,7 @@
 # SPDX-License-Identifier: LGPL-3.0-only
 
 """Podman Extension unit for Glances' Containers plugin."""
+
 from datetime import datetime
 
 from glances.globals import iterkeys, itervalues, nativestr, pretty_date, string_value_to_float
@@ -20,7 +21,9 @@ try:
 except Exception as e:
     import_podman_error_tag = True
     # Display debug message if import KeyError
-    logger.warning("Error loading Podman deps Lib. Podman feature in the Containers plugin is disabled ({})".format(e))
+    logger.warning(
+        f"Error loading Podman deps Lib. Podman feature in the Containers plugin is disabled ({e})"
+    )
 else:
     import_podman_error_tag = False
 
@@ -36,7 +39,9 @@ class PodmanContainerStatsFetcher:
         self._streamer = StatsStreamer(stats_iterable, initial_stream_value={})
 
     def _log_debug(self, msg, exception=None):
-        logger.debug("containers (Podman) ID: {} - {} ({})".format(self._container.id, msg, exception))
+        logger.debug(
+            f"containers (Podman) ID: {self._container.id} - {msg} ({exception})"
+        )
         logger.debug(self._streamer.stats)
 
     def stop(self):
@@ -94,7 +99,7 @@ class PodmanPodStatsFetcher:
         self._streamer = StatsStreamer(stats_iterable, initial_stream_value={}, sleep_duration=2)
 
     def _log_debug(self, msg, exception=None):
-        logger.debug("containers (Podman): Pod Manager - {} ({})".format(msg, exception))
+        logger.debug(f"containers (Podman): Pod Manager - {msg} ({exception})")
         logger.debug(self._streamer.stats)
 
     def stop(self):
@@ -233,7 +238,7 @@ class PodmanContainersExtension:
             # PodmanClient works lazily, so make a ping to determine if socket is open
             self.client.ping()
         except Exception as e:
-            logger.error("{} plugin - Can't connect to Podman ({})".format(self.ext_name, e))
+            logger.error(f"{self.ext_name} plugin - Can't connect to Podman ({e})")
             self.client = None
 
     def update_version(self):
@@ -265,7 +270,7 @@ class PodmanContainersExtension:
             if not self.pods_stats_fetcher:
                 self.pods_stats_fetcher = PodmanPodStatsFetcher(self.client.pods)
         except Exception as e:
-            logger.error("{} plugin - Can't get containers list ({})".format(self.ext_name, e))
+            logger.error(f"{self.ext_name} plugin - Can't get containers list ({e})")
             return version_stats, []
 
         # Start new thread for new container
@@ -273,14 +278,20 @@ class PodmanContainersExtension:
             if container.id not in self.container_stats_fetchers:
                 # StatsFetcher did not exist in the internal dict
                 # Create it, add it to the internal dict
-                logger.debug("{} plugin - Create thread for container {}".format(self.ext_name, container.id[:12]))
+                logger.debug(
+                    f"{self.ext_name} plugin - Create thread for container {container.id[:12]}"
+                )
                 self.container_stats_fetchers[container.id] = PodmanContainerStatsFetcher(container)
 
         # Stop threads for non-existing containers
-        absent_containers = set(iterkeys(self.container_stats_fetchers)) - set(c.id for c in containers)
+        absent_containers = set(iterkeys(self.container_stats_fetchers)) - {
+            c.id for c in containers
+        }
         for container_id in absent_containers:
             # Stop the StatsFetcher
-            logger.debug("{} plugin - Stop thread for old container {}".format(self.ext_name, container_id[:12]))
+            logger.debug(
+                f"{self.ext_name} plugin - Stop thread for old container {container_id[:12]}"
+            )
             self.container_stats_fetchers[container_id].stop()
             # Delete the StatsFetcher from the dict
             del self.container_stats_fetchers[container_id]
@@ -321,7 +332,7 @@ class PodmanContainersExtension:
             started_at = datetime.fromtimestamp(container.attrs['StartedAt'])
             stats_fetcher = self.container_stats_fetchers[container.id]
             activity_stats = stats_fetcher.activity_stats
-            stats.update(activity_stats)
+            stats |= activity_stats
 
             # Additional fields
             stats['cpu_percent'] = stats["cpu"]['total']

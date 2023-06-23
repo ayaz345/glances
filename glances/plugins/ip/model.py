@@ -9,6 +9,7 @@
 
 """IP plugin."""
 
+
 import threading
 from ujson import loads
 
@@ -23,7 +24,7 @@ try:
     import netifaces
 except ImportError as e:
     import_error_tag = True
-    logger.warning("Missing Python Lib ({}), IP plugin is disabled".format(e))
+    logger.warning(f"Missing Python Lib ({e}), IP plugin is disabled")
 else:
     import_error_tag = False
 
@@ -62,7 +63,7 @@ class PluginModel(GlancesPluginModel):
         )
 
         public_ip_disabled = self.get_conf_value("public_ip_disabled", default=self._default_public_ip_disabled)
-        self.public_ip_disabled = True if public_ip_disabled == ["True"] else False
+        self.public_ip_disabled = public_ip_disabled == ["True"]
 
         # For the Censys options (see issue #2105)
         self.public_info = ""
@@ -93,7 +94,7 @@ class PluginModel(GlancesPluginModel):
             try:
                 default_gw = netifaces.gateways()['default'][netifaces.AF_INET]
             except (KeyError, AttributeError) as e:
-                logger.debug("Cannot grab default gateway IP address ({})".format(e))
+                logger.debug(f"Cannot grab default gateway IP address ({e})")
                 return {}
             else:
                 stats['gateway'] = default_gw[0]
@@ -104,7 +105,7 @@ class PluginModel(GlancesPluginModel):
                 address = netifaces.ifaddresses(default_gw[1])[netifaces.AF_INET][0]['addr']
                 mask = netifaces.ifaddresses(default_gw[1])[netifaces.AF_INET][0]['netmask']
             except (KeyError, AttributeError) as e:
-                logger.debug("Cannot grab private IP address ({})".format(e))
+                logger.debug(f"Cannot grab private IP address ({e})")
                 return {}
             else:
                 stats['address'] = address
@@ -123,17 +124,13 @@ class PluginModel(GlancesPluginModel):
                             self.public_address, self.censys_url, self.censys_username, self.censys_password
                         ).get()
             except (KeyError, AttributeError) as e:
-                logger.debug("Cannot grab public IP information ({})".format(e))
+                logger.debug(f"Cannot grab public IP information ({e})")
             else:
                 stats['public_address'] = self.public_address
                 # Too much information provided in the public_info
                 # Limit it to public_info_for_human
                 # stats['public_info'] = self.public_info
                 stats['public_info_human'] = self.public_info_for_human(self.public_info)
-
-        elif self.input_method == 'snmp':
-            # Not implemented yet
-            pass
 
         # Update the stats
         self.stats = stats
@@ -157,27 +154,34 @@ class PluginModel(GlancesPluginModel):
         msg = 'IP '
         ret.append(self.curse_add_line(msg, 'TITLE', optional=True))
         if 'address' in self.stats:
-            msg = '{}'.format(self.stats['address'])
+            msg = f"{self.stats['address']}"
             ret.append(self.curse_add_line(msg, optional=True))
         if 'mask_cidr' in self.stats:
             # VPN with no internet access (issue #842)
-            msg = '/{}'.format(self.stats['mask_cidr'])
+            msg = f"/{self.stats['mask_cidr']}"
             ret.append(self.curse_add_line(msg, optional=True))
 
         # Then with the public IP information
         try:
-            msg_pub = '{}'.format(self.stats['public_address'])
+            msg_pub = f"{self.stats['public_address']}"
         except (UnicodeEncodeError, KeyError):
             # Add KeyError exception (see https://github.com/nicolargo/glances/issues/1469)
             pass
         else:
             if self.stats['public_address']:
                 msg = ' Pub '
-                ret.append(self.curse_add_line(msg, 'TITLE', optional=True))
-                ret.append(self.curse_add_line(msg_pub, optional=True))
-
+                ret.extend(
+                    (
+                        self.curse_add_line(msg, 'TITLE', optional=True),
+                        self.curse_add_line(msg_pub, optional=True),
+                    )
+                )
             if self.stats['public_info_human']:
-                ret.append(self.curse_add_line(' {}'.format(self.stats['public_info_human']), optional=True))
+                ret.append(
+                    self.curse_add_line(
+                        f" {self.stats['public_info_human']}", optional=True
+                    )
+                )
 
         return ret
 
@@ -190,9 +194,9 @@ class PluginModel(GlancesPluginModel):
         for f in self.censys_fields:
             field = f.split(':')
             if len(field) == 1 and field[0] in public_info:
-                field_result.append('{}'.format(public_info[field[0]]))
+                field_result.append(f'{public_info[field[0]]}')
             elif len(field) == 2 and field[0] in public_info and field[1] in public_info[field[0]]:
-                field_result.append('{}'.format(public_info[field[0]][field[1]]))
+                field_result.append(f'{public_info[field[0]][field[1]]}')
         return '/'.join(field_result)
 
     @staticmethod
@@ -203,10 +207,7 @@ class PluginModel(GlancesPluginModel):
         """
         # Thanks to @Atticfire
         # See https://github.com/nicolargo/glances/issues/1417#issuecomment-469894399
-        if ip is None:
-            # Correct issue #1528
-            return 0
-        return sum(bin(int(x)).count('1') for x in ip.split('.'))
+        return 0 if ip is None else sum(bin(int(x)).count('1') for x in ip.split('.'))
 
 
 class PublicIpAddress(object):
@@ -231,17 +232,14 @@ class PublicIpAddress(object):
             if q.qsize() > 0:
                 ip = q.get()
 
-        if ip is None:
-            return None
-
-        return ', '.join(set([x.strip() for x in ip.split(',')]))
+        return None if ip is None else ', '.join({x.strip() for x in ip.split(',')})
 
     def _get_ip_public(self, queue_target, url, json=False, key=None):
         """Request the url service and put the result in the queue_target."""
         try:
             response = urlopen(url, timeout=self.timeout).read().decode('utf-8')
         except Exception as e:
-            logger.debug("IP plugin - Cannot open URL {} ({})".format(url, e))
+            logger.debug(f"IP plugin - Cannot open URL {url} ({e})")
             queue_target.put(None)
         else:
             # Request depend on service
@@ -279,22 +277,19 @@ class PublicIpInfo(object):
             if q.qsize() > 0:
                 info = q.get()
 
-        if info is None:
-            return None
-
-        return info
+        return None if info is None else info
 
     def _get_ip_public_info(self, queue_target, ip, url, username, password):
         """Request the url service and put the result in the queue_target."""
-        request_url = "{}/v2/hosts/{}".format(url, ip)
+        request_url = f"{url}/v2/hosts/{ip}"
         try:
             response = urlopen_auth(request_url, username, password).read()
         except Exception as e:
-            logger.debug("IP plugin - Cannot open URL {} ({})".format(request_url, e))
+            logger.debug(f"IP plugin - Cannot open URL {request_url} ({e})")
             queue_target.put(None)
         else:
             try:
                 queue_target.put(loads(response)['result'])
             except (ValueError, KeyError) as e:
-                logger.debug("IP plugin - Cannot get result field from {} ({})".format(request_url, e))
+                logger.debug(f"IP plugin - Cannot get result field from {request_url} ({e})")
                 queue_target.put(None)

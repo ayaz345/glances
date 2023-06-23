@@ -107,26 +107,26 @@ class GlancesStats(object):
         # Load the plugin class
         try:
             # Import the plugin
-            plugin = import_module('glances.plugins.' + plugin_path + '.model')
+            plugin = import_module(f'glances.plugins.{plugin_path}.model')
             # Init and add the plugin to the dictionary
             self._plugins[name] = plugin.PluginModel(args=args, config=config)
         except Exception as e:
             # If a plugin can not be loaded, display a critical message
             # on the console but do not crash
-            logger.critical("Error while initializing the {} plugin ({})".format(name, e))
+            logger.critical(f"Error while initializing the {name} plugin ({e})")
             logger.error(traceback.format_exc())
             # An error occurred, disable the plugin
             if args is not None:
-                setattr(args, 'disable_' + name, False)
+                setattr(args, f'disable_{name}', False)
         else:
             # Manage the default status of the plugin (enable or disable)
             if args is not None:
                 # If the all key is set in the disable_plugin option then look in the enable_plugin option
                 if getattr(args, 'disable_all', False):
-                    logger.debug('%s => %s', name, getattr(args, 'enable_' + name, False))
-                    setattr(args, 'disable_' + name, not getattr(args, 'enable_' + name, False))
+                    logger.debug('%s => %s', name, getattr(args, f'enable_{name}', False))
+                    setattr(args, f'disable_{name}', not getattr(args, f'enable_{name}', False))
                 else:
-                    setattr(args, 'disable_' + name, getattr(args, 'disable_' + name, False))
+                    setattr(args, f'disable_{name}', getattr(args, f'disable_{name}', False))
 
     def load_plugins(self, args=None):
         """Load all plugins in the 'plugins' folder."""
@@ -137,10 +137,10 @@ class GlancesStats(object):
                 # Load the plugin
                 start_duration.reset()
                 self._load_plugin(os.path.basename(item), args=args, config=self.config)
-                logger.debug("Plugin {} started in {} seconds".format(item, start_duration.get()))
+                logger.debug(f"Plugin {item} started in {start_duration.get()} seconds")
 
         # Log plugins list
-        logger.debug("Active plugins list: {}".format(self.getPluginsList()))
+        logger.debug(f"Active plugins list: {self.getPluginsList()}")
 
     def load_exports(self, args=None):
         """Load all exporters in the 'exports' folder."""
@@ -160,9 +160,13 @@ class GlancesStats(object):
                 else:
                     exporter_name = os.path.basename(item)
                 # Set the disable_<name> to False by default
-                setattr(self.args, 'export_' + exporter_name, getattr(self.args, 'export_' + exporter_name, False))
+                setattr(
+                    self.args,
+                    f'export_{exporter_name}',
+                    getattr(self.args, f'export_{exporter_name}', False),
+                )
                 # We should import the module
-                if getattr(self.args, 'export_' + exporter_name, False):
+                if getattr(self.args, f'export_{exporter_name}', False):
                     # Import the export module
                     export_module = import_module(item)
                     # Add the exporter instance to the active exporters dictionary
@@ -172,10 +176,12 @@ class GlancesStats(object):
                 else:
                     # Add the exporter name to the available exporters dictionary
                     self._exports_all[exporter_name] = exporter_name
-                logger.debug("Exporter {} started in {} seconds".format(exporter_name, start_duration.get()))
+                logger.debug(
+                    f"Exporter {exporter_name} started in {start_duration.get()} seconds"
+                )
 
         # Log plugins list
-        logger.debug("Active exports modules list: {}".format(self.getExportsList()))
+        logger.debug(f"Active exports modules list: {self.getExportsList()}")
         return True
 
     def getPluginsList(self, enable=True):
@@ -189,7 +195,7 @@ class GlancesStats(object):
         if enable:
             return [p for p in self._plugins if self._plugins[p].is_enabled()]
         else:
-            return [p for p in self._plugins]
+            return list(self._plugins)
 
     def getExportsList(self, enable=True):
         """Return the exports list.
@@ -199,10 +205,7 @@ class GlancesStats(object):
 
         :return: list of export module names
         """
-        if enable:
-            return [e for e in self._exports]
-        else:
-            return [e for e in self._exports_all]
+        return list(self._exports) if enable else list(self._exports_all)
 
     def load_limits(self, config=None):
         """Load the stats limits (except the one in the exclude list)."""
@@ -239,7 +242,7 @@ class GlancesStats(object):
         input_stats = input_stats or {}
 
         for e in self._exports:
-            logger.debug("Export stats using the %s module" % e)
+            logger.debug(f"Export stats using the {e} module")
             thread = threading.Thread(target=self._exports[e].update, args=(input_stats,))
             thread.start()
 
@@ -311,10 +314,7 @@ class GlancesStats(object):
 
     def get_plugin(self, plugin_name):
         """Return the plugin name."""
-        if plugin_name in self._plugins:
-            return self._plugins[plugin_name]
-        else:
-            return None
+        return self._plugins[plugin_name] if plugin_name in self._plugins else None
 
     def end(self):
         """End of the Glances stats."""

@@ -245,7 +245,7 @@ class PluginModel(GlancesPluginModel):
 
         # First line
         # total% + active
-        msg = '{}'.format('MEM')
+        msg = 'MEM'
         ret.append(self.curse_add_line(msg, "TITLE"))
         msg = ' {:2}'.format(self.trend_msg(self.get_trend('percent')))
         ret.append(self.curse_add_line(msg))

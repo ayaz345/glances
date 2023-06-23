@@ -30,7 +30,7 @@ class GlancesPassword(object):
 
         self.config = config
         self.password_dir = self.local_password_path()
-        self.password_filename = self.username + '.pwd'
+        self.password_filename = f'{self.username}.pwd'
         self.password_file = os.path.join(self.password_dir, self.password_filename)
 
     def local_password_path(self):
@@ -50,7 +50,7 @@ class GlancesPassword(object):
         """Hash password with a salt based on UUID (universally unique identifier)."""
         salt = uuid.uuid4().hex
         encrypted_password = self.get_hash(plain_password, salt=salt)
-        return salt + '$' + encrypted_password
+        return f'{salt}${encrypted_password}'
 
     def check_password(self, hashed_password, plain_password):
         """Encode the plain_password with the salt of the hashed_password.
@@ -76,7 +76,7 @@ class GlancesPassword(object):
         """
         if os.path.exists(self.password_file) and not clear:
             # If the password file exist then use it
-            logger.info("Read password from file {}".format(self.password_file))
+            logger.info(f"Read password from file {self.password_file}")
             password = self.load_password()
         else:
             # password_hash is the plain SHA-pbkdf2_hmac password
@@ -92,11 +92,7 @@ class GlancesPassword(object):
                     sys.exit(1)
 
             # Return the plain SHA-pbkdf2_hmac or the salted password
-            if clear:
-                password = password_hash
-            else:
-                password = password_hashed
-
+            password = password_hash if clear else password_hashed
             # Save the hashed password to the password file
             if not clear:
                 save_input = input('Do you want to save the password? [Yes/No]: ')

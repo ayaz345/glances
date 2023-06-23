@@ -99,9 +99,7 @@ class PluginModel(GlancesPluginModel):
                 logger.debug("Plugin - fs: PsUtil fetch failed")
                 return self.stats
 
-            # Optional hack to allow logical mounts points (issue #448)
-            allowed_fs_types = self.get_conf_value('allow')
-            if allowed_fs_types:
+            if allowed_fs_types := self.get_conf_value('allow'):
                 # Avoid Psutil call unless mounts need to be allowed
                 try:
                     all_mounted_fs = psutil.disk_partitions(all=True)
@@ -109,7 +107,7 @@ class PluginModel(GlancesPluginModel):
                     logger.debug("Plugin - fs: PsUtil extended fetch failed")
                 else:
                     # Discard duplicates (#2299) and add entries matching allowed fs types
-                    tracked_mnt_points = set(f.mountpoint for f in fs_stat)
+                    tracked_mnt_points = {f.mountpoint for f in fs_stat}
                     for f in all_mounted_fs:
                         if (
                             any(f.fstype.find(fs_type) >= 0 for fs_type in allowed_fs_types)
@@ -163,7 +161,7 @@ class PluginModel(GlancesPluginModel):
                 # Windows or ESXi tips
                 for fs in fs_stat:
                     # Memory stats are grabbed in the same OID table (ignore it)
-                    if fs == 'Virtual Memory' or fs == 'Physical Memory' or fs == 'Real Memory':
+                    if fs in ['Virtual Memory', 'Physical Memory', 'Real Memory']:
                         continue
                     size = int(fs_stat[fs]['size']) * int(fs_stat[fs]['alloc_unit'])
                     used = int(fs_stat[fs]['used']) * int(fs_stat[fs]['alloc_unit'])
@@ -231,10 +229,7 @@ class PluginModel(GlancesPluginModel):
         # Header
         msg = '{:{width}}'.format('FILE SYS', width=name_max_width)
         ret.append(self.curse_add_line(msg, "TITLE"))
-        if args.fs_free_space:
-            msg = '{:>7}'.format('Free')
-        else:
-            msg = '{:>7}'.format('Used')
+        msg = '{:>7}'.format('Free') if args.fs_free_space else '{:>7}'.format('Used')
         ret.append(self.curse_add_line(msg))
         msg = '{:>7}'.format('Total')
         ret.append(self.curse_add_line(msg))
@@ -243,7 +238,7 @@ class PluginModel(GlancesPluginModel):
         for i in sorted(self.stats, key=operator.itemgetter(self.get_key())):
             # New line
             ret.append(self.curse_new_line())
-            if i['device_name'] == '' or i['device_name'] == 'none':
+            if i['device_name'] in ['', 'none']:
                 mnt_point = i['mnt_point'][-name_max_width + 1 :]
             elif len(i['mnt_point']) + len(i['device_name'].split('/')[-1]) <= name_max_width - 3:
                 # If possible concatenate mode info... Glances touch inside :)

@@ -120,15 +120,11 @@ def itervalues(d):
 
 
 def u(s, errors='replace'):
-    if isinstance(s, text_type):
-        return s
-    return s.decode('utf-8', errors=errors)
+    return s if isinstance(s, text_type) else s.decode('utf-8', errors=errors)
 
 
 def b(s, errors='replace'):
-    if isinstance(s, binary_type):
-        return s
-    return s.encode('utf-8', errors=errors)
+    return s if isinstance(s, binary_type) else s.encode('utf-8', errors=errors)
 
 
 def nativestr(s, errors='replace'):
@@ -145,7 +141,7 @@ def system_exec(command):
     try:
         res = subprocess.run(command.split(' '), stdout=subprocess.PIPE).stdout.decode('utf-8')
     except Exception as e:
-        res = 'ERROR: {}'.format(e)
+        res = f'ERROR: {e}'
     return res.rstrip()
 
 
@@ -194,20 +190,19 @@ def is_admin():
     function to return False.
     """
 
-    if os.name == 'nt':
-        import ctypes
-        import traceback
-
-        # WARNING: requires Windows XP SP2 or higher!
-        try:
-            return ctypes.windll.shell32.IsUserAnAdmin()
-        except Exception as e:
-            print("Admin check failed with error: %s" % e)
-            traceback.print_exc()
-            return False
-    else:
+    if os.name != 'nt':
         # Check for root on Posix
         return os.getuid() == 0
+    import ctypes
+    import traceback
+
+        # WARNING: requires Windows XP SP2 or higher!
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except Exception as e:
+        print(f"Admin check failed with error: {e}")
+        traceback.print_exc()
+        return False
 
 
 def key_exist_value_not_none(k, d):
@@ -228,14 +223,14 @@ def key_exist_value_not_none_not_v(k, d, value='', lengh=None):
 
 def disable(class_name, var):
     """Set disable_<var> to True in the class class_name."""
-    setattr(class_name, 'enable_' + var, False)
-    setattr(class_name, 'disable_' + var, True)
+    setattr(class_name, f'enable_{var}', False)
+    setattr(class_name, f'disable_{var}', True)
 
 
 def enable(class_name, var):
     """Set disable_<var> to False in the class class_name."""
-    setattr(class_name, 'enable_' + var, True)
-    setattr(class_name, 'disable_' + var, False)
+    setattr(class_name, f'enable_{var}', True)
+    setattr(class_name, f'disable_{var}', False)
 
 
 def safe_makedirs(path):
@@ -243,10 +238,9 @@ def safe_makedirs(path):
     try:
         os.makedirs(path)
     except OSError as err:
-        if err.errno == errno.EEXIST:
-            if not os.path.isdir(path):
-                raise
-        else:
+        if err.errno != errno.EEXIST:
+            raise
+        if not os.path.isdir(path):
             raise
 
 
@@ -274,24 +268,24 @@ def pretty_date(time=False):
         if second_diff < 10:
             return "just now"
         if second_diff < 60:
-            return str(second_diff) + " secs"
+            return f"{str(second_diff)} secs"
         if second_diff < 120:
             return "a min"
         if second_diff < 3600:
-            return str(second_diff // 60) + " mins"
+            return f"{str(second_diff // 60)} mins"
         if second_diff < 7200:
             return "an hour"
         if second_diff < 86400:
-            return str(second_diff // 3600) + " hours"
+            return f"{str(second_diff // 3600)} hours"
     if day_diff == 1:
         return "yesterday"
     if day_diff < 7:
-        return str(day_diff) + " days"
+        return f"{str(day_diff)} days"
     if day_diff < 31:
-        return str(day_diff // 7) + " weeks"
+        return f"{str(day_diff // 7)} weeks"
     if day_diff < 365:
-        return str(day_diff // 30) + " months"
-    return str(day_diff // 365) + " years"
+        return f"{str(day_diff // 30)} months"
+    return f"{str(day_diff // 365)} years"
 
 
 def urlopen_auth(url, username, password):
@@ -299,7 +293,9 @@ def urlopen_auth(url, username, password):
     return urlopen(
         Request(
             url,
-            headers={'Authorization': 'Basic ' + base64.b64encode(('%s:%s' % (username, password)).encode()).decode()},
+            headers={
+                'Authorization': f"Basic {base64.b64encode(f'{username}:{password}'.encode()).decode()}"
+            },
         )
     )
 

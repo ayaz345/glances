@@ -126,11 +126,6 @@ class PluginModel(GlancesPluginModel):
                 self.diskio_old = diskio
             except (IOError, UnboundLocalError):
                 pass
-        elif self.input_method == 'snmp':
-            # Update stats using SNMP
-            # No standard way for the moment...
-            pass
-
         # Update the stats
         self.stats = stats
 
@@ -148,11 +143,17 @@ class PluginModel(GlancesPluginModel):
         # Alert
         for i in self.get_raw():
             disk_real_name = i['disk_name']
-            self.views[i[self.get_key()]]['read_bytes']['decoration'] = self.get_alert(
-                int(i['read_bytes'] // i['time_since_update']), header=disk_real_name + '_rx'
+            self.views[i[self.get_key()]]['read_bytes'][
+                'decoration'
+            ] = self.get_alert(
+                int(i['read_bytes'] // i['time_since_update']),
+                header=f'{disk_real_name}_rx',
             )
-            self.views[i[self.get_key()]]['write_bytes']['decoration'] = self.get_alert(
-                int(i['write_bytes'] // i['time_since_update']), header=disk_real_name + '_tx'
+            self.views[i[self.get_key()]]['write_bytes'][
+                'decoration'
+            ] = self.get_alert(
+                int(i['write_bytes'] // i['time_since_update']),
+                header=f'{disk_real_name}_tx',
             )
 
     def msg_curse(self, args=None, max_width=None):
@@ -174,16 +175,18 @@ class PluginModel(GlancesPluginModel):
             msg = '{:>8}'.format('IOR/s')
             ret.append(self.curse_add_line(msg))
             msg = '{:>7}'.format('IOW/s')
-            ret.append(self.curse_add_line(msg))
         else:
             msg = '{:>8}'.format('R/s')
             ret.append(self.curse_add_line(msg))
             msg = '{:>7}'.format('W/s')
-            ret.append(self.curse_add_line(msg))
+        ret.append(self.curse_add_line(msg))
         # Disk list (sorted by name)
         for i in self.sorted_stats():
             # Hide stats if never be different from 0 (issue #1787)
-            if all([self.get_views(item=i[self.get_key()], key=f, option='hidden') for f in self.hide_zero_fields]):
+            if all(
+                self.get_views(item=i[self.get_key()], key=f, option='hidden')
+                for f in self.hide_zero_fields
+            ):
                 continue
             # Is there an alias for the disk name ?
             disk_name = self.has_alias(i['disk_name']) if self.has_alias(i['disk_name']) else i['disk_name']
@@ -191,7 +194,7 @@ class PluginModel(GlancesPluginModel):
             ret.append(self.curse_new_line())
             if len(disk_name) > name_max_width:
                 # Cut disk name if it is too long
-                disk_name = '_' + disk_name[-name_max_width + 1 :]
+                disk_name = f'_{disk_name[-name_max_width + 1:]}'
             msg = '{:{width}}'.format(nativestr(disk_name), width=name_max_width + 1)
             ret.append(self.curse_add_line(msg))
             if args.diskio_iops:

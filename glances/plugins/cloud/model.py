@@ -14,6 +14,7 @@ Supported Cloud API:
 - OpenStackEC2 meta data (class ThreadOpenStackEC2) - Amazon EC2 compatible
 """
 
+
 import threading
 
 from glances.globals import iteritems, to_ascii
@@ -26,7 +27,7 @@ try:
 except ImportError as e:
     import_error_tag = True
     # Display debug message if import error
-    logger.warning("Missing Python Lib ({}), Cloud plugin is disabled".format(e))
+    logger.warning(f"Missing Python Lib ({e}), Cloud plugin is disabled")
 else:
     import_error_tag = False
 
@@ -110,9 +111,7 @@ class PluginModel(GlancesPluginModel):
         # Generate the output
         msg = self.stats.get('platform', 'Unknown')
         ret.append(self.curse_add_line(msg, "TITLE"))
-        msg = ' {} instance {} ({})'.format(
-            self.stats.get('type', 'Unknown'), self.stats.get('name', 'Unknown'), self.stats.get('region', 'Unknown')
-        )
+        msg = f" {self.stats.get('type', 'Unknown')} instance {self.stats.get('name', 'Unknown')} ({self.stats.get('region', 'Unknown')})"
         ret.append(self.curse_add_line(msg))
 
         # Return the message with decoration
@@ -161,12 +160,14 @@ class ThreadOpenStack(threading.Thread):
             return False
 
         for k, v in iteritems(self.OPENSTACK_API_METADATA):
-            r_url = '{}/{}'.format(self.OPENSTACK_API_URL, v)
+            r_url = f'{self.OPENSTACK_API_URL}/{v}'
             try:
                 # Local request, a timeout of 3 seconds is OK
                 r = requests.get(r_url, timeout=3)
             except Exception as e:
-                logger.debug('cloud plugin - Cannot connect to the OpenStack metadata API {}: {}'.format(r_url, e))
+                logger.debug(
+                    f'cloud plugin - Cannot connect to the OpenStack metadata API {r_url}: {e}'
+                )
                 break
             else:
                 if r.ok:

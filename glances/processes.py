@@ -81,7 +81,7 @@ class GlancesProcesses(object):
             p = psutil.Process()
             p.io_counters()
         except Exception as e:
-            logger.warning('PsUtil can not grab processes io_counters ({})'.format(e))
+            logger.warning(f'PsUtil can not grab processes io_counters ({e})')
             self.disable_io_counters = True
         else:
             logger.debug('PsUtil can grab processes io_counters')
@@ -92,7 +92,7 @@ class GlancesProcesses(object):
             p = psutil.Process()
             p.gids()
         except Exception as e:
-            logger.warning('PsUtil can not grab processes gids ({})'.format(e))
+            logger.warning(f'PsUtil can not grab processes gids ({e})')
             self.disable_gids = True
         else:
             logger.debug('PsUtil can grab processes gids')
@@ -176,14 +176,13 @@ class GlancesProcesses(object):
 
         :returns: int or None
         """
-        if LINUX:
-            # XXX: waiting for https://github.com/giampaolo/psutil/issues/720
-            try:
-                with open('/proc/sys/kernel/pid_max', 'rb') as f:
-                    return int(f.read())
-            except (OSError, IOError):
-                return None
-        else:
+        if not LINUX:
+            return None
+        # XXX: waiting for https://github.com/giampaolo/psutil/issues/720
+        try:
+            with open('/proc/sys/kernel/pid_max', 'rb') as f:
+                return int(f.read())
+        except (OSError, IOError):
             return None
 
     @property
@@ -233,10 +232,7 @@ class GlancesProcesses(object):
     @property
     def sort_reverse(self):
         """Return True to sort processes in reverse 'key' order, False instead."""
-        if self.sort_key == 'name' or self.sort_key == 'username':
-            return False
-
-        return True
+        return self.sort_key not in ['name', 'username']
 
     def max_values(self):
         """Return the max values dict."""
@@ -252,9 +248,7 @@ class GlancesProcesses(object):
 
     def reset_max_values(self):
         """Reset the maximum values dict."""
-        self._max_values = {}
-        for k in self._max_values_list:
-            self._max_values[k] = 0.0
+        self._max_values = {k: 0.0 for k in self._max_values_list}
 
     def get_extended_stats(self, proc):
         """Get the extended stats for the given PID."""
@@ -284,7 +278,7 @@ class GlancesProcesses(object):
 
             if LINUX:
                 try:
-                    ret['memory_swap'] = sum([v.swap for v in selected_process.memory_maps()])
+                    ret['memory_swap'] = sum(v.swap for v in selected_process.memory_maps())
                 except (psutil.NoSuchProcess, KeyError):
                     # (KeyError catch for issue #1551)
                     pass
@@ -301,29 +295,25 @@ class GlancesProcesses(object):
                 ret['tcp'] = None
                 ret['udp'] = None
         except (psutil.NoSuchProcess, ValueError, AttributeError) as e:
-            logger.error('Can not grab extended stats ({})'.format(e))
+            logger.error(f'Can not grab extended stats ({e})')
             self.extended_process = None
             ret['extended_stats'] = False
         else:
-            logger.debug('Grab extended stats for process {}'.format(proc['pid']))
+            logger.debug(f"Grab extended stats for process {proc['pid']}")
 
             # Compute CPU and MEM min/max/mean
             for stat_prefix in ['cpu', 'memory']:
-                if stat_prefix + '_min' not in self.extended_process:
-                    ret[stat_prefix + '_min'] = proc[stat_prefix + '_percent']
+                if f'{stat_prefix}_min' not in self.extended_process:
+                    ret[f'{stat_prefix}_min'] = proc[f'{stat_prefix}_percent']
                 else:
-                    ret[stat_prefix + '_min'] = (
-                        proc[stat_prefix + '_percent']
-                        if proc[stat_prefix + '_min'] > proc[stat_prefix + '_percent']
-                        else proc[stat_prefix + '_min']
+                    ret[f'{stat_prefix}_min'] = min(
+                        proc[f'{stat_prefix}_min'], proc[f'{stat_prefix}_percent']
                     )
-                if stat_prefix + '_max' not in self.extended_process:
-                    ret[stat_prefix + '_max'] = proc[stat_prefix + '_percent']
+                if f'{stat_prefix}_max' not in self.extended_process:
+                    ret[stat_prefix + '_max'] = proc[f'{stat_prefix}_percent']
                 else:
-                    ret[stat_prefix + '_max'] = (
-                        proc[stat_prefix + '_percent']
-                        if proc[stat_prefix + '_max'] < proc[stat_prefix + '_percent']
-                        else proc[stat_prefix + '_max']
+                    ret[stat_prefix + '_max'] = max(
+                        proc[stat_prefix + '_max'], proc[stat_prefix + '_percent']
                     )
                 if stat_prefix + '_mean_sum' not in self.extended_process:
                     ret[stat_prefix + '_mean_sum'] = proc[stat_prefix + '_percent']
